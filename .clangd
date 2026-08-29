@@ -1,0 +1,11 @@
+CompileFlags:
+  Add:
+    - -xc
+    - -DTEST
+    - -std=c89
+    - -Wno-c23-extensions
+    - -Wextra
+    - -Wsign-conversion
+    - -Wno-unused-variable
+    - -Wno-unused-but-set-variable
+    - -Wno-unused-function
