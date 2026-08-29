@@ -30,6 +30,60 @@ See the end of this file for more information.
 
 #define _SDC_internal static
 
+/* MATH = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */
+
+/* Source: https://en.wikipedia.org/wiki/Feature_scaling */
+/* returns new rescaled value */
+int SDC_math_min_max_rescale_value(const int old_value, const int old_min,
+                                   const int old_max, const int new_min,
+                                   const int new_max) {
+  double new_value = ((old_value - old_min) / (double)(old_max - old_min));
+  new_value *= (new_max - new_min);
+  return (new_value + new_min);
+}
+
+/* Source: https://en.wikipedia.org/wiki/Feature_scaling */
+/* returns new rescaled value */
+double SDC_math_min_max_rescale_value_double(const double old_value,
+                                             const double old_min,
+                                             const double old_max,
+                                             const double new_min,
+                                             const double new_max) {
+  double new_value = ((old_value - old_min) / (old_max - old_min));
+  new_value *= (new_max - new_min);
+  return (new_value + new_min);
+}
+
+/* RAND = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */
+
+/* Source: https://en.wikipedia.org/wiki/Xorshift#xoroshiro */
+_SDC_internal uint32_t _SDC_xorshift32(void) {
+  uint32_t state = (uint32_t)time(NULL);
+  uint32_t x = state;
+  x ^= x << 13;
+  x ^= x >> 17;
+  x ^= x << 5;
+  return state = x;
+}
+
+/* Returns either 0 or 1. */
+int SDC_rand_bool(void) { return _SDC_xorshift32() % 2; }
+_SDC_internal const uint32_t _SDC_rand_range_old_max = 1000 * 64;
+
+/* Pseudo RNG: quick and dirty XORshift followed by min-max rescaling. */
+int SDC_rand_range(const int floor, const int ceiling) {
+  uint32_t rand = _SDC_xorshift32() % _SDC_rand_range_old_max;
+  return SDC_math_min_max_rescale_value((int)rand, 0, _SDC_rand_range_old_max,
+                                        floor, ceiling);
+}
+
+/* Pseudo RNG: quick and dirty XORshift followed by min-max rescaling. */
+double SDC_rand_range_double(const double floor, const double ceiling) {
+  uint32_t rand = _SDC_xorshift32() % _SDC_rand_range_old_max;
+  return SDC_math_min_max_rescale_value_double(
+      (int)rand, 0, _SDC_rand_range_old_max, floor, ceiling);
+}
+
 /* STRINGS = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = */
 
 /* returns NULL if failure */
@@ -79,6 +133,58 @@ void SDC_str_remove_first_n(char *c, int n) {
     return;
   }
   memmove(c, c + n, len - n + 1);
+}
+
+/* returns 1 if str only contains whitespace */
+int SDC_str_is_empty(const char *s) {
+  int i;
+  for (i = 0; s[i] != '\0'; i++) {
+    if (isalpha(s[i])) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+/* IO = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */
+
+#define _SDC_io_read_buffer_kb 2048 * 1000
+
+/* Reads file into provided buffer; stack-allocated (max 2MB). Silently stops
+  reading into buffer without throwing an error if stack-limit is reached.
+  Returns 1 on failure. */
+int SDC_io_read_entire_file(char **buffer, const char *path) {
+  int c, len = 0;
+  char tmp[_SDC_io_read_buffer_kb];
+  FILE *f = fopen(path, "rb");
+  if (!f)
+    return 1;
+  while ((c = fgetc(f)) != EOF) {
+    if (len >= _SDC_io_read_buffer_kb)
+      break;
+    tmp[len++] = c;
+  }
+  tmp[len] = '\0';
+  *buffer = tmp;
+  fclose(f);
+  return 0;
+}
+
+/* Reads user input into buffer with a simple prompt. */
+void SDC_io_prompt(char **buffer, const char *prompt) {
+  char tmp[96] = {0};
+  int c_count = 0, ch;
+  printf("%s\n> ", prompt);
+  while ((ch = getchar()) != EOF) {
+    if (ch == '\n') {
+      tmp[c_count] = '\0';
+      SDC_str_trim(tmp);
+      break;
+    }
+    tmp[c_count] = ch;
+    c_count++;
+  }
+  *buffer = tmp;
 }
 
 /* DYNAMIC ARRAY = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = */
@@ -431,16 +537,29 @@ int SDC_HashTable_modify(SDC_HashTable *ht, const char *key,
 -------------------------------------------------------------------------------
 Revision history:
 
-    2026-08-29      Initial commit
+    2026-08-30  IO, strings, rand and math
     ----------
-                    * Hashtable
-                        - Owns the memory of both keys and values.
-                        - Hash function implemented with Fowler–Noll–Vo.
-                    * Dynamic array
-                    * Various string functions
-                        - Func to dup. string.
-                        - Func to trim beg. and end of string in-place.
-                        - Func to check if a str starts with another.
+                * Math
+                    - New function for min-max range scaling
+                * Rand
+                    - New function to get random bool
+                    - New function to get random range
+                * IO
+                    - New function to read entire file.
+                    - New function for simple user prompt.
+                * Strings
+                    - New function to check if string effectively empty.
+
+    2026-08-29  Initial commit
+    ----------
+                * Hashtable
+                    - Owns the memory of both keys and values.
+                    - Hash function implemented with Fowler–Noll–Vo.
+                * Dynamic array
+                * Various string functions
+                    - Func to dup. string.
+                    - Func to trim beg. and end of string in-place.
+                    - Func to check if a str starts with another.
 
 -------------------------------------------------------------------------------
 References:
@@ -456,6 +575,8 @@ https://stackoverflow.com/questions/15821123/removing-elements-from-an-array-in-
 https://doc.rust-lang.org/std/vec/struct.Vec.html#method.remove
 https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
 https://www.geeksforgeeks.org/c/bitwise-operators-in-c-cpp/
+https://en.wikipedia.org/wiki/Xorshift#xoroshiro
+https://en.wikipedia.org/wiki/Feature_scaling
 
 -------------------------------------------------------------------------------
 License:

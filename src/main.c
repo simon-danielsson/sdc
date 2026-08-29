@@ -23,19 +23,34 @@
 int main(void) {
     SDC_HashTable ht = {0};
     void *car;
+    char *file_contents;
+    char *prompt = "What is your name?";
+    char *input_buf;
+    /*
+       SDC_io_read_entire_file(&file_contents, "README.md");
+       printf("%s\n", file_contents);
+       */
 
-    char s1[] = " \t  Banana \t ";
-    char s2[] = "helloBanana";
+    SDC_io_prompt(&input_buf, prompt);
+    printf("Your name is %s and you are %d years old.\n", input_buf,
+            SDC_rand_range(20, 30));
 
-    SDC_str_trim(s1);
-    printf("'%s'\n", s1);
-    SDC_str_remove_first_n(s2, 5);
+    return 0;
 
-    if (SDC_str_starts_with(s1, s2)) {
-        printf("true!\n");
-    } else {
-        printf("false!\n");
-    }
+    /*
+     * char s1[] = " \t  Banana \t ";
+     * char s2[] = "helloBanana";
+     *
+     * SDC_str_trim(s1);
+     * printf("'%s'\n", s1);
+     * SDC_str_remove_first_n(s2, 5);
+
+     * if (SDC_str_starts_with(s1, s2)) {
+     *     printf("true!\n");
+     * } else {
+     *     printf("false!\n");
+     * }
+     */
 
     if (SDC_HashTable_init(&ht) != 0) {
         return 1;

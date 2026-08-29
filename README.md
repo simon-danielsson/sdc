@@ -58,6 +58,7 @@ No usage section written yet.
 - https://doc.rust-lang.org/std/vec/struct.Vec.html#method.remove
 - https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
 - https://www.geeksforgeeks.org/c/bitwise-operators-in-c-cpp/
+- https://en.wikipedia.org/wiki/Xorshift#xoroshiro
     
 ---
 <div id="license"></div>
