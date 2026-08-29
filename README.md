@@ -59,6 +59,8 @@ No usage section written yet.
 - https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
 - https://www.geeksforgeeks.org/c/bitwise-operators-in-c-cpp/
 - https://en.wikipedia.org/wiki/Xorshift#xoroshiro
+- https://en.wikipedia.org/wiki/Feature_scaling
+
     
 ---
 <div id="license"></div>
