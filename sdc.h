@@ -2,13 +2,13 @@
 
 SDC (an abbreviation of "Simon Danielsson's C library")
 
-This is a header-only C library meant to function as a compilation of utilities
-I often use across my various C projects. Implemented in ANSI C (C89).
+A header-only C library with utilities frequently needed across my various C
+projects. Implemented in ANSI C (C89).
 
 Repository     https://github.com/simon-danielsson/sdc
-License        MIT
 Author         Simon Danielsson
 Contact        contact@simondanielsson.se
+License        MIT
 
 See the end of this file for more information.
 
