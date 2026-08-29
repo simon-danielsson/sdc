@@ -23,8 +23,11 @@
 int main(void) {
     SDC_HashTable ht = {0};
     void *car;
-    double x = 40, min = 5, max = 20;
-    printf("char len of x: %f\n", SDC_math_clamp(x, min, max));
+    int i;
+
+    for (i = 0; i <= 10; i++) {
+        printf("%d ", SDC_rand_range(1, 10));
+    }
 
     return 0;
 

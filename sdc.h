@@ -95,7 +95,7 @@ size_t SDC_math_char_width_of_int(int i) {
 
 /* Source: https://en.wikipedia.org/wiki/Xorshift#xoroshiro */
 _SDC_internal uint32_t _SDC_xorshift32(void) {
-  uint32_t state = (uint32_t)time(NULL);
+  uint32_t state = time(NULL) % (uint32_t)rand();
   uint32_t x = state;
   x ^= x << 13;
   x ^= x >> 17;
