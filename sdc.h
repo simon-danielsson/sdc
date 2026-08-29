@@ -170,11 +170,14 @@ int SDC_io_read_entire_file(char **buffer, const char *path) {
   return 0;
 }
 
-/* Reads user input into buffer with a simple prompt. */
-void SDC_io_prompt(char **buffer, const char *prompt) {
+/* Reads user input into buffer with a simple prompt, finish with newline. */
+/* If you don't want a prompt header, provide NULL. */
+void SDC_io_prompt(char **buffer, const char *prompt_header) {
   char tmp[96] = {0};
   int c_count = 0, ch;
-  printf("%s\n> ", prompt);
+  if (prompt_header != NULL)
+    printf("%s\n", prompt_header);
+  printf("> ");
   while ((ch = getchar()) != EOF) {
     if (ch == '\n') {
       tmp[c_count] = '\0';
