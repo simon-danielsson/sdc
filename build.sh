@@ -20,16 +20,17 @@ compilation_flags_constant=(
 )
 
 compilation_flags_debug=(
-    "-O0"
+     "-O0"
     "-DDEBUG"
-    "-pedantic"
-    "-pedantic-errors"
     "-fsanitize=address"
     "-fsanitize=undefined"
+    "-fno-omit-frame-pointer"
     "-Wall"
     "-Wextra"
     "-Wshadow"
     "-Werror"
+    "-Wpedantic"
+    "-Werror=format-security"
 )
 
 compilation_flags_release=(
@@ -116,10 +117,10 @@ log_details "bin name: $BIN_NAME"
 
 compile() {
     local compiler=""
-    if $(cc -v 2>/dev/null); then
-        compiler="cc"
-    elif $(gcc -v 2>/dev/null); then
+    if $(gcc -v 2>/dev/null); then
         compiler="gcc"
+    elif $(cc -v 2>/dev/null); then
+        compiler="cc"
     elif $(clang -v 2>/dev/null); then
         compiler="clang"
     elif $(tcc -v 2>/dev/null); then

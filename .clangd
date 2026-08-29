@@ -1,10 +1,11 @@
 CompileFlags:
   Add:
+    - -DSDC_IMPLEMENTATION
     - -xc
     - -DTEST
     - -std=c89
-    - -Wno-c23-extensions
     - -Wextra
+    - -pedantic
     - -Wsign-conversion
     - -Wno-unused-variable
     - -Wno-unused-but-set-variable
