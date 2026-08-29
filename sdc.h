@@ -18,6 +18,7 @@ See the end of this file for more information.
 #define SDC_H_INCLUDE
 
 #include <ctype.h>
+#include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,6 +55,42 @@ double SDC_math_min_max_rescale_value_double(const double old_value,
   return (new_value + new_min);
 }
 
+/* Source: https://stackoverflow.com/a/41871699 */
+double SDC_math_floor(double num) {
+  long n;
+  double d;
+  if (num >= (double)LONG_MAX || num <= (double)LONG_MIN || num != num) {
+    return num;
+  }
+  n = (long)num;
+  d = (double)n;
+  if (d == num || num >= 0)
+    return d;
+  else
+    return d - 1;
+}
+
+/* Source: https://stackoverflow.com/a/16659263 */
+double SDC_math_clamp(double d, double min, double max) {
+  const double t = d < min ? min : d;
+  return t > max ? max : t;
+}
+
+/* Get the character width of an integer. */
+/* Useful when working with CLI/TUI applications. */
+size_t SDC_math_char_width_of_int(int i) {
+  size_t len;
+  if (i == INT_MIN)
+    return 11;
+  if (i < 0)
+    i = -i;
+
+  len = 1;
+  for (; i >= 10; i /= 10)
+    len++;
+  return len;
+}
+
 /* RAND = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */
 
 /* Source: https://en.wikipedia.org/wiki/Xorshift#xoroshiro */
@@ -86,7 +123,7 @@ double SDC_rand_range_double(const double floor, const double ceiling) {
 
 /* STRINGS = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = */
 
-/* returns NULL if failure */
+/* Returns NULL if failure */
 char *SDC_str_dup(const char *s) {
   char *out;
   if (!s)
@@ -99,7 +136,14 @@ char *SDC_str_dup(const char *s) {
   return out;
 }
 
-/* trims whitespace, newlines etc. at beginning and end of string in-place */
+/* Append a single char to a string in-place. */
+void SDC_str_append_char(char *s, char c) {
+  int len = strlen(s);
+  s[len] = c;
+  s[len + 1] = '\0';
+}
+
+/* Trims whitespace, newlines etc. at beginning and end of string in-place. */
 void SDC_str_trim(char *s) {
   char *start = s, *end;
   size_t len;
@@ -117,7 +161,7 @@ void SDC_str_trim(char *s) {
   s[len] = '\0';
 }
 
-/* returns 1 if true */
+/* Returns 1 if true. */
 int SDC_str_starts_with(const char *str, const char *starts_with) {
   size_t len_str = strlen(str), len_word = strlen(starts_with);
   if (len_word > len_str)
@@ -125,7 +169,7 @@ int SDC_str_starts_with(const char *str, const char *starts_with) {
   return strncmp(str, starts_with, len_word) == 0;
 }
 
-/* remove first N chars from string */
+/* Remove first N chars from string. */
 void SDC_str_remove_first_n(char *c, int n) {
   int len = strlen(c);
   if (n >= len) {
@@ -135,7 +179,7 @@ void SDC_str_remove_first_n(char *c, int n) {
   memmove(c, c + n, len - n + 1);
 }
 
-/* returns 1 if str only contains whitespace */
+/* Returns 1 if str only contains whitespace. */
 int SDC_str_is_empty(const char *s) {
   int i;
   for (i = 0; s[i] != '\0'; i++) {
@@ -543,15 +587,19 @@ Revision history:
     2026-08-30  IO, strings, rand and math
     ----------
                 * Math
-                    - New function for min-max range scaling
+                    - New function for min-max range scaling.
+                    - New function for clamping.
+                    - New function for flooring.
+                    - New function to get the char width of an integer.
                 * Rand
-                    - New function to get random bool
-                    - New function to get random range
+                    - New function to get random bool.
+                    - New function to get random range.
                 * IO
                     - New function to read entire file.
                     - New function for simple user prompt.
                 * Strings
                     - New function to check if string effectively empty.
+                    - New function for appending a char to the end of a string.
 
     2026-08-29  Initial commit
     ----------

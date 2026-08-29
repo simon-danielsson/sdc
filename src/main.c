@@ -23,17 +23,8 @@
 int main(void) {
     SDC_HashTable ht = {0};
     void *car;
-    char *file_contents;
-    char *prompt = "What is your name?";
-    char *input_buf;
-    /*
-       SDC_io_read_entire_file(&file_contents, "README.md");
-       printf("%s\n", file_contents);
-       */
-
-    SDC_io_prompt(&input_buf, prompt);
-    printf("Your name is %s and you are %d years old.\n", input_buf,
-            SDC_rand_range(20, 30));
+    double x = 40, min = 5, max = 20;
+    printf("char len of x: %f\n", SDC_math_clamp(x, min, max));
 
     return 0;
 
