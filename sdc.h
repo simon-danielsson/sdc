@@ -377,9 +377,7 @@ struct _SDC_BucketNode {
 _SDC_internal _SDC_BucketNode *
 _SDC_BucketNode_new(const char *key, const void *value, size_t value_size) {
   _SDC_BucketNode *n = (_SDC_BucketNode *)malloc(sizeof(_SDC_BucketNode));
-  size_t key_len = strlen(key) + 1;
-  n->key = malloc(sizeof(char) * key_len);
-  memcpy(n->key, key, key_len);
+  n->key = SDC_str_dup(key);
   n->value = malloc(value_size);
   memcpy(n->value, value, value_size);
 
@@ -426,19 +424,18 @@ _SDC_internal void _SDC_Bucket_insert(_SDC_Bucket *b, const char *key,
 }
 
 _SDC_internal int _SDC_Bucket_free(_SDC_Bucket *b) {
-  _SDC_BucketNode *temp;
-  if (b->n == NULL)
-    return 1;
-  temp = b->n->next;
-  while (temp != NULL) {
-    _SDC_BucketNode *current = temp;
-    temp = temp->next;
+  _SDC_BucketNode *current = b->n;
+
+  while (current != NULL) {
+    _SDC_BucketNode *next = current->next;
+
     free(current->value);
     free(current->key);
     free(current);
+    current = next;
   }
-  free(b->n->key);
-  free(b->n);
+
+  b->n = NULL;
   return 0;
 }
 
@@ -502,7 +499,7 @@ int SDC_HashTable_insert(SDC_HashTable *ht, const char *key, const void *value,
       last = last->next;
     last->next = bn;
   }
-  return 1;
+  return 0;
 }
 
 /* returns NULL if not found */
@@ -557,24 +554,17 @@ int SDC_HashTable_remove(SDC_HashTable *ht, const char *key) {
 int SDC_HashTable_modify(SDC_HashTable *ht, const char *key,
                          const void *new_value, size_t new_value_size) {
   unsigned long idx = _SDC_fnv_hash(key, ht->buckets_len);
-  _SDC_BucketNode *current;
-  {
-    if (ht->buckets[idx].n == NULL)
-      return 1;
-    current = ht->buckets[idx].n;
-    while (current != NULL) {
-      if (strcmp(current->key, key) == 0) {
-        void *tmp = realloc(current->value, new_value_size);
-        if (tmp == NULL)
-          return 1;
-        current->value = tmp;
-        memcpy(current->value, new_value, new_value_size);
-        return 0;
-      }
-      current = current->next;
+  _SDC_BucketNode *current = ht->buckets[idx].n;
+
+  while (current != NULL) {
+    if (strcmp(current->key, key) == 0) {
+      memcpy(current->value, new_value, new_value_size);
+      return 0;
     }
-    return 1;
+    current = current->next;
   }
+
+  return 1;
 }
 
 #endif /* SDC_IMPLEMENTATION */

@@ -25,11 +25,14 @@ int main(void) {
     void *car;
     int i;
 
-    for (i = 0; i <= 10; i++) {
-        printf("%d ", SDC_rand_range(1, 10));
-    }
+    /*
 
-    return 0;
+       for (i = 0; i <= 10; i++) {
+       printf("%d ", SDC_rand_range(1, 10));
+       }
+
+       return 0;
+       */
 
     /*
      * char s1[] = " \t  Banana \t ";
