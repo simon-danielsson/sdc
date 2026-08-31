@@ -2,9 +2,6 @@
 #define SDC_IMPLEMENTATION
 #include "../sdc.h"
 
-#define HT_INSERT_STR(ht, key, val)                                            \
-    SDC_HashTable_insert((ht), (key), (void *)(val), strlen((val)) + 1);
-
 /*
    To do:
 
@@ -21,9 +18,6 @@
 */
 
 int main(void) {
-    SDC_HashTable ht = {0};
-    void *car;
-    int i;
 
     /*
 
@@ -49,38 +43,44 @@ int main(void) {
      * }
      */
 
+    SDC_HashTable ht = {0};
     if (SDC_HashTable_init(&ht) != 0) {
         return 1;
     }
 
-    HT_INSERT_STR(&ht, "car", "volvo");
-    HT_INSERT_STR(&ht, "sports_car", "ferrari");
+    SDC_HashTable_insert(&ht, "car",
+            &(SDC_TYPE){.kind = SDC_STR, .value.str = "volvo"});
+    SDC_HashTable_insert(&ht, "sports_car",
+            &(SDC_TYPE){.kind = SDC_STR, .value.str = "ferrari"});
 
     SDC_HashTable_remove(&ht, "car");
 
     if (SDC_HashTable_contains_key(&ht, "car")) {
         printf("table contains key car\n");
     } else {
+        printf("table does not contain key car\n");
     }
 
     if (SDC_HashTable_contains_key(&ht, "sports_car")) {
         printf("table contains key sports_car\n");
     }
 
-    SDC_HashTable_modify(&ht, "sports_car", (void *)"cool bugatti",
-            strlen("cool bugatti") + 1);
+    SDC_HashTable_modify(
+            &ht, "sports_car",
+            &(SDC_TYPE){.kind = SDC_STR, .value.str = "cool bugatti"});
 
-    car = SDC_HashTable_get_value_by_key(&ht, "sports_car");
-    if (!car)
+    SDC_TYPE car = SDC_HashTable_get_value_by_key(&ht, "sports_car");
+
+    if (car.kind == SDC_NULL)
         printf("car was not found!\n");
     else
-        printf("car: %s\n", (char *)car);
+        printf("car: %s\n", car.value.str);
 
     car = SDC_HashTable_get_value_by_key(&ht, "car");
-    if (!car)
+    if (car.kind == SDC_NULL)
         printf("car was not found!\n");
     else
-        printf("car: %s\n", (char *)car);
+        printf("car: %s\n", car.value.str);
 
     if (SDC_HashTable_free(&ht) != 0) {
         return 1;

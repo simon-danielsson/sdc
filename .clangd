@@ -3,7 +3,7 @@ CompileFlags:
     - -DSDC_IMPLEMENTATION
     - -xc
     - -DTEST
-    - -std=c89
+    - -std=c99
     - -Wextra
     - -pedantic
     - -Wsign-conversion

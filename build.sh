@@ -16,7 +16,7 @@ ARG_VERBOSE=false
 NO_RUN=false
 
 compilation_flags_constant=(
-    "-std=c89"
+    "-std=c99"
 )
 
 compilation_flags_debug=(

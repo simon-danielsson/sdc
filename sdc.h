@@ -3,7 +3,7 @@
 SDC (an abbreviation of "Simon Danielsson's C library")
 
 A header-only C library with utilities frequently needed across my various C
-projects. Implemented in ANSI C (C89).
+projects.
 
 Repository     https://github.com/simon-danielsson/sdc
 Author         Simon Danielsson
@@ -20,21 +20,22 @@ See the end of this file for more information.
 #include <ctype.h>
 #include <limits.h>
 #include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
-#endif /* SDC_H_INCLUDE */
+#endif // SDC_H_INCLUDE
 
 #ifdef SDC_IMPLEMENTATION
 
 #define _SDC_internal static
 
-/* MATH = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */
+// MATH = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
-/* Source: https://en.wikipedia.org/wiki/Feature_scaling */
-/* returns new rescaled value */
+// Source: https://en.wikipedia.org/wiki/Feature_scaling
 int SDC_math_min_max_rescale_value(const int old_value, const int old_min,
                                    const int old_max, const int new_min,
                                    const int new_max) {
@@ -43,19 +44,18 @@ int SDC_math_min_max_rescale_value(const int old_value, const int old_min,
   return (new_value + new_min);
 }
 
-/* Source: https://en.wikipedia.org/wiki/Feature_scaling */
-/* returns new rescaled value */
-double SDC_math_min_max_rescale_value_double(const double old_value,
-                                             const double old_min,
-                                             const double old_max,
-                                             const double new_min,
-                                             const double new_max) {
+// Source: https://en.wikipedia.org/wiki/Feature_scaling
+double SDC_math_min_max_rescale_value_f(const double old_value,
+                                        const double old_min,
+                                        const double old_max,
+                                        const double new_min,
+                                        const double new_max) {
   double new_value = ((old_value - old_min) / (old_max - old_min));
   new_value *= (new_max - new_min);
   return (new_value + new_min);
 }
 
-/* Source: https://stackoverflow.com/a/41871699 */
+// Source: https://stackoverflow.com/a/41871699
 double SDC_math_floor(double num) {
   long n;
   double d;
@@ -70,14 +70,14 @@ double SDC_math_floor(double num) {
     return d - 1;
 }
 
-/* Source: https://stackoverflow.com/a/16659263 */
+// Source: https://stackoverflow.com/a/16659263
 double SDC_math_clamp(double d, double min, double max) {
   const double t = d < min ? min : d;
   return t > max ? max : t;
 }
 
-/* Get the character width of an integer. */
-/* Useful when working with CLI/TUI applications. */
+// Get the character width of an integer.
+// Useful when working with CLI/TUI applications.
 size_t SDC_math_char_width_of_int(int i) {
   size_t len;
   if (i == INT_MIN)
@@ -91,39 +91,145 @@ size_t SDC_math_char_width_of_int(int i) {
   return len;
 }
 
-/* RAND = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */
+// RAND = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
-/* Source: https://en.wikipedia.org/wiki/Xorshift#xoroshiro */
-_SDC_internal uint32_t _SDC_xorshift32(void) {
-  uint32_t state = time(NULL) % (uint32_t)rand();
-  uint32_t x = state;
+_SDC_internal uint32_t _SDC_rand_state;
+_SDC_internal bool _SDC_rand_state_initialized = false;
+#define _SDC_rand_seed                                                         \
+  if (!_SDC_rand_state_initialized) {                                          \
+    _SDC_rand_state = time(NULL);                                              \
+    _SDC_rand_state_initialized = true;                                        \
+  }
+
+// Source: https://en.wikipedia.org/wiki/Xorshift#xoroshiro
+_SDC_internal uint32_t _SDC_rand_xorshift(uint32_t *state) {
+  _SDC_rand_seed;
+  uint32_t x = *state;
   x ^= x << 13;
   x ^= x >> 17;
   x ^= x << 5;
-  return state = x;
+  return *state = x;
 }
 
-/* Returns either 0 or 1. */
-int SDC_rand_bool(void) { return _SDC_xorshift32() % 2; }
+bool SDC_rand_bool(void) { return _SDC_rand_xorshift(&_SDC_rand_state) % 2; }
+
 _SDC_internal const uint32_t _SDC_rand_range_old_max = 1000 * 64;
 
-/* Pseudo RNG: quick and dirty XORshift followed by min-max rescaling. */
+// Quick and dirty XORshift followed by min-max rescaling.
 int SDC_rand_range(const int floor, const int ceiling) {
-  uint32_t rand = _SDC_xorshift32() % _SDC_rand_range_old_max;
+  uint32_t rand =
+      _SDC_rand_xorshift(&_SDC_rand_state) % _SDC_rand_range_old_max;
   return SDC_math_min_max_rescale_value((int)rand, 0, _SDC_rand_range_old_max,
                                         floor, ceiling);
 }
 
-/* Pseudo RNG: quick and dirty XORshift followed by min-max rescaling. */
-double SDC_rand_range_double(const double floor, const double ceiling) {
-  uint32_t rand = _SDC_xorshift32() % _SDC_rand_range_old_max;
-  return SDC_math_min_max_rescale_value_double(
-      (int)rand, 0, _SDC_rand_range_old_max, floor, ceiling);
+// Quick and dirty XORshift followed by min-max rescaling.
+double SDC_rand_range_f(const double floor, const double ceiling) {
+  uint32_t rand =
+      _SDC_rand_xorshift(&_SDC_rand_state) % _SDC_rand_range_old_max;
+  return SDC_math_min_max_rescale_value_f((int)rand, 0, _SDC_rand_range_old_max,
+                                          floor, ceiling);
 }
 
-/* STRINGS = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = */
+// Get random value between 0 and RAND_MAX
+int SDC_rand(void) {
+  int r = (int)_SDC_rand_xorshift(&_SDC_rand_state);
+  return SDC_math_clamp(r, 0, RAND_MAX);
+}
 
-/* Returns NULL if failure */
+// Source: https://stackoverflow.com/a/6127606
+// Shuffle elements of a static array. Array needs to be cast to void.
+// Example: SDC_rand_shuffle((void *)array, n, size);
+void SDC_rand_shuffle(void *array, const size_t n, const size_t size) {
+  char tmp[size], *arr = array;
+  size_t stride = size * sizeof(char), i, j;
+
+  if (n > 1) {
+    for (i = 0; i < n - 1; ++i) {
+      j = i + (size_t)SDC_rand() / (RAND_MAX / (n - i) + 1);
+
+      memcpy(tmp, arr + j * stride, size);
+      memcpy(arr + j * stride, arr + i * stride, size);
+      memcpy(arr + i * stride, tmp, size);
+    }
+  }
+}
+
+// STRINGS = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+
+// Returns splits count on success, returns -1 on failure. (Note that this
+// function only should be used with small strings - i.e sub-2000 bytes)
+/* Example:
+ *   char *s = "This is a nice string";
+ *
+ *   const size_t buf_size = 64;
+ *   char *buf[buf_size];
+ *   for (size_t i = 0; i < buf_size; i++)
+ *       buf[i] = alloca(buf_size);
+ *
+ *   int word_count = SDC_str_split_by_delim(buf, buf_size, s, strlen(s), ' ');
+ *   if (word_count != -1) {
+ *       for (int i = 0; i < word_count; i++) {
+ *           printf("%d: %s\n", i, buf[i]);
+ *       }
+ *   }
+ */
+int SDC_str_split_by_delim(char *splits_buf[], size_t splits_buf_size,
+                           const char *input, const size_t input_len,
+                           const char delim) {
+  size_t buf_len = 0;
+
+  for (size_t i = 0; i < splits_buf_size && i < input_len; i++) {
+    if (splits_buf[i] == NULL)
+      return -1;
+  }
+
+  for (size_t pos = 0; pos < input_len && buf_len < splits_buf_size;) {
+    size_t start = pos;
+
+    if (input[pos] == delim) {
+      pos++;
+      continue;
+    }
+
+    while (pos < input_len && input[pos] != delim)
+      pos++;
+
+    size_t segm_len = pos - start;
+    if (segm_len > 0 && buf_len < splits_buf_size) {
+      memcpy(splits_buf[buf_len], input + start, segm_len);
+      splits_buf[buf_len][segm_len] = '\0';
+      buf_len++;
+    }
+  }
+  return buf_len;
+}
+
+// Un-capitalize entire string
+void SDC_str_lower(char *s) {
+  size_t i;
+  for (i = 0; i < strlen(s); i++)
+    s[i] = tolower(s[i]);
+}
+
+// Capitalize entire string
+void SDC_str_upper(char *s) {
+  size_t i;
+  for (i = 0; i < strlen(s); i++)
+    s[i] = toupper(s[i]);
+}
+
+void SDC_str_remove_special_characters(char *str) {
+  char *dst = str;
+  while (*str) {
+    if (isalnum((unsigned char)*str) || *str == '_')
+      *dst++ = *str;
+    str++;
+  }
+  *dst = '\0';
+}
+
+// Returns NULL if failure
 char *SDC_str_dup(const char *s) {
   char *out;
   if (!s)
@@ -136,14 +242,14 @@ char *SDC_str_dup(const char *s) {
   return out;
 }
 
-/* Append a single char to a string in-place. */
+// Append a single char to a string in-place.
 void SDC_str_append_char(char *s, char c) {
   int len = strlen(s);
   s[len] = c;
   s[len + 1] = '\0';
 }
 
-/* Trims whitespace, newlines etc. at beginning and end of string in-place. */
+// Trims whitespace, newlines etc. at beginning and end of string in-place.
 void SDC_str_trim(char *s) {
   char *start = s, *end;
   size_t len;
@@ -161,15 +267,14 @@ void SDC_str_trim(char *s) {
   s[len] = '\0';
 }
 
-/* Returns 1 if true. */
-int SDC_str_starts_with(const char *str, const char *starts_with) {
+bool SDC_str_starts_with(const char *str, const char *starts_with) {
   size_t len_str = strlen(str), len_word = strlen(starts_with);
   if (len_word > len_str)
-    return 0;
+    return false;
   return strncmp(str, starts_with, len_word) == 0;
 }
 
-/* Remove first N chars from string. */
+// Remove first N chars from string.
 void SDC_str_remove_first_n(char *c, int n) {
   int len = strlen(c);
   if (n >= len) {
@@ -179,18 +284,19 @@ void SDC_str_remove_first_n(char *c, int n) {
   memmove(c, c + n, len - n + 1);
 }
 
-/* Returns 1 if str only contains whitespace. */
-int SDC_str_is_empty(const char *s) {
+// Returns true if string is effectively empty.
+// i.e "  \n  " or "\t "
+bool SDC_str_is_empty(const char *s) {
   int i;
   for (i = 0; s[i] != '\0'; i++) {
     if (isalpha(s[i])) {
-      return 0;
+      return false;
     }
   }
-  return 1;
+  return true;
 }
 
-/* IO = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */
+// IO = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
 #define _SDC_io_read_buffer_kb 2048 * 1000
 
@@ -214,8 +320,8 @@ int SDC_io_read_entire_file(char **buffer, const char *path) {
   return 0;
 }
 
-/* Reads user input into buffer with a simple prompt, finish with newline. */
-/* If you don't want a prompt header, provide NULL. */
+/* Reads user input into buffer with a simple prompt, finish with newline.
+   If you don't want a prompt header, provide NULL. */
 void SDC_io_prompt(char **buffer, const char *prompt_header) {
   char tmp[96] = {0};
   int c_count = 0, ch;
@@ -234,29 +340,21 @@ void SDC_io_prompt(char **buffer, const char *prompt_header) {
   *buffer = tmp;
 }
 
-/* DYNAMIC ARRAY = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = */
-
-typedef enum {
-  SDC_DA_STR,
-  SDC_DA_UINT8,
-  SDC_DA_INT,
-  SDC_DA_LONG,
-  SDC_DA_DOUBLE
-} SDC_da_item_kind;
+// DYNAMIC ARRAY = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
 typedef struct {
-  SDC_da_item_kind k;
+  enum { SDC_NULL, SDC_INT, SDC_STR, SDC_LONG, SDC_DOUBLE, SDC_FLOAT } kind;
   union {
-    char *s;
     int i;
-    uint8_t u8;
-    long ll;
+    char *str;
+    long l;
     double d;
-  } v;
-} SDC_da_item;
+    float f;
+  } value;
+} SDC_TYPE;
 
 typedef struct {
-  SDC_da_item *items;
+  SDC_TYPE *items;
   size_t count, capacity;
 } SDC_da;
 
@@ -265,7 +363,7 @@ typedef struct {
 void SDC_da_init(SDC_da *da) {
   da->capacity = _SDC_DA_INIT_CAP;
   da->count = 0;
-  da->items = malloc(sizeof(SDC_da_item) * da->capacity);
+  da->items = malloc(sizeof(SDC_TYPE) * da->capacity);
 }
 
 /* Shortens the vector, keeping the first N items and removing the rest. Returns
@@ -279,11 +377,11 @@ int SDC_da_truncate(SDC_da *da, const size_t idx) {
 
 void SDC_da_free(SDC_da *da) { free(da->items); }
 
-/* Adds new item to the back, returns 1 if failure. */
-int SDC_da_push(SDC_da *da, const SDC_da_item item) {
+// Adds new item to the back, returns 1 if failure.
+int SDC_da_push(SDC_da *da, const SDC_TYPE item) {
   if (da->count == da->capacity) {
     size_t new_capacity = da->capacity * 2;
-    void *new_items = realloc(da->items, new_capacity * sizeof(SDC_da_item));
+    void *new_items = realloc(da->items, new_capacity * sizeof(SDC_TYPE));
     if (new_items == NULL)
       return 1;
     da->items = new_items;
@@ -296,7 +394,7 @@ int SDC_da_push(SDC_da *da, const SDC_da_item item) {
 
 /* Pops last item from array and returns its value in 'out' (if you don't need
    the popped item, provide NULL), returns 1 if failure. */
-int SDC_da_pop(SDC_da *da, SDC_da_item *out) {
+int SDC_da_pop(SDC_da *da, SDC_TYPE *out) {
   if (da->count == 0)
     return 1;
   da->count--;
@@ -306,8 +404,8 @@ int SDC_da_pop(SDC_da *da, SDC_da_item *out) {
 }
 
 /* Returns a copy of the dynamic array as a static stack-allocated C array,
-   i.e 'SDC_da_item array[len]'. Returns 1 on failure. */
-int SDC_da_copy_to_stack(SDC_da *da, SDC_da_item new_array[],
+   i.e 'SDC_TYPE array[len]'. Returns 1 on failure. */
+int SDC_da_copy_to_stack(SDC_da *da, SDC_TYPE new_array[],
                          size_t new_array_len) {
   size_t i;
   if (da->count == 0 || da->count != new_array_len)
@@ -321,7 +419,7 @@ int SDC_da_copy_to_stack(SDC_da *da, SDC_da_item new_array[],
    failure. */
 int SDC_da_remove(SDC_da *da, const size_t idx) {
   size_t i;
-  SDC_da_item next;
+  SDC_TYPE next;
   if (idx > da->count || idx < 0 || da->count == 0)
     return 1;
   for (i = idx - 1; i < da->count; i++) {
@@ -334,18 +432,18 @@ int SDC_da_remove(SDC_da *da, const size_t idx) {
   return 0;
 }
 
-/* Sugar function for retrieving current length of array. */
+// Sugar function for retrieving current length of array.
 size_t SDC_da_len(SDC_da *da) { return da->count; }
 
-/* Inserts new item at idx, shifting all items after it to the right. */
-int SDC_da_insert(SDC_da *da, const SDC_da_item item, const size_t idx) {
+// Inserts new item at idx, shifting all items after it to the right.
+int SDC_da_insert(SDC_da *da, const SDC_TYPE item, const size_t idx) {
   size_t i;
-  SDC_da_item prev;
+  SDC_TYPE prev;
   if (idx > da->count || idx < 0 || da->count == 0)
     return 1;
   if (da->count == da->capacity) {
     size_t new_capacity = da->capacity * 2;
-    void *new_items = realloc(da->items, new_capacity * sizeof(SDC_da_item));
+    void *new_items = realloc(da->items, new_capacity * sizeof(SDC_TYPE));
     if (new_items == NULL)
       return 1;
     da->items = new_items;
@@ -365,21 +463,39 @@ int SDC_da_insert(SDC_da *da, const SDC_da_item item, const size_t idx) {
   return 0;
 }
 
-/* HASH TABLE = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */
+// HASH TABLE = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
 typedef struct _SDC_BucketNode _SDC_BucketNode;
 struct _SDC_BucketNode {
   char *key;
-  void *value;
+  SDC_TYPE value;
   _SDC_BucketNode *next;
 };
 
-_SDC_internal _SDC_BucketNode *
-_SDC_BucketNode_new(const char *key, const void *value, size_t value_size) {
-  _SDC_BucketNode *n = (_SDC_BucketNode *)malloc(sizeof(_SDC_BucketNode));
+_SDC_internal _SDC_BucketNode *_SDC_BucketNode_new(const char *key,
+                                                   const SDC_TYPE *value) {
+  _SDC_BucketNode *n = malloc(sizeof *n);
+  if (n == NULL)
+    return NULL;
+
   n->key = SDC_str_dup(key);
-  n->value = malloc(value_size);
-  memcpy(n->value, value, value_size);
+  if (n->key == NULL) {
+    free(n);
+    return NULL;
+  }
+
+  n->value.kind = value->kind;
+
+  if (value->kind == SDC_STR) {
+    n->value.value.str = SDC_str_dup(value->value.str);
+    if (n->value.value.str == NULL) {
+      free(n->key);
+      free(n);
+      return NULL;
+    }
+  } else {
+    n->value.value = value->value;
+  }
 
   n->next = NULL;
   return n;
@@ -398,20 +514,19 @@ typedef struct {
 
 int SDC_HashTable_init(SDC_HashTable *ht) {
   size_t i;
+
   ht->buckets_len = _SDC_HashTable_len;
-  for (i = 0; i < ht->buckets_len; i++) {
-    ht->buckets[i].n =
-        (_SDC_BucketNode *)_SDC_BucketNode_new("@__HEAD__@", 0, 0);
-    if (!ht->buckets[i].n)
-      return 1;
-  }
+
+  for (i = 0; i < ht->buckets_len; i++)
+    ht->buckets[i].n = NULL;
+
   return 0;
 }
 
 _SDC_internal void _SDC_Bucket_insert(_SDC_Bucket *b, const char *key,
-                                      void *data, size_t value_size) {
-  /*TODO: insert should double as a replace*/
-  _SDC_BucketNode *bn = _SDC_BucketNode_new(key, data, value_size);
+                                      SDC_TYPE *value) {
+  // TODO: insert should double as a replace
+  _SDC_BucketNode *bn = _SDC_BucketNode_new(key, value);
   _SDC_BucketNode *last;
   if (b->n == NULL) {
     b->n = bn;
@@ -429,7 +544,9 @@ _SDC_internal int _SDC_Bucket_free(_SDC_Bucket *b) {
   while (current != NULL) {
     _SDC_BucketNode *next = current->next;
 
-    free(current->value);
+    if (current->value.kind == SDC_STR)
+      free(current->value.value.str);
+
     free(current->key);
     free(current);
     current = next;
@@ -463,69 +580,66 @@ _SDC_internal unsigned long _SDC_fnv_hash(const char *ip,
   return hash % array_len;
 }
 
-/* returns 0 if false, 1 if true */
-int SDC_HashTable_contains_key(SDC_HashTable *ht, const char *key) {
+bool SDC_HashTable_contains_key(SDC_HashTable *ht, const char *key) {
   unsigned long idx = _SDC_fnv_hash(key, ht->buckets_len);
   _SDC_BucketNode *current;
   {
     if (ht->buckets[idx].n == NULL)
-      return 0;
+      return false;
     current = ht->buckets[idx].n;
     while (current != NULL) {
       if (strcmp(current->key, key) == 0)
-        return 1;
+        return true;
       current = current->next;
     }
-    return 0;
+    return false;
   }
 }
 
-/* returns 1 on failure */
-int SDC_HashTable_insert(SDC_HashTable *ht, const char *key, const void *value,
-                         size_t value_size) {
+// Returns false on failure */
+bool SDC_HashTable_insert(SDC_HashTable *ht, const char *key, SDC_TYPE *value) {
   unsigned long idx = _SDC_fnv_hash(key, ht->buckets_len);
   _SDC_BucketNode *bn, *last;
   if (SDC_HashTable_contains_key(ht, key))
-    return 1;
+    return false;
   {
-    /*TODO: insert should double as a replace*/
-    bn = _SDC_BucketNode_new(key, value, value_size);
+    // TODO: insert should double as a replace
+    bn = _SDC_BucketNode_new(key, value);
     if (ht->buckets[idx].n == NULL) {
       ht->buckets[idx].n = bn;
-      return 0;
+      return true;
     }
     last = ht->buckets[idx].n;
     while (last->next != NULL)
       last = last->next;
     last->next = bn;
   }
-  return 0;
+  return true;
 }
 
-/* returns NULL if not found */
-void *SDC_HashTable_get_value_by_key(SDC_HashTable *ht, const char *key) {
+/* Returns a shallow copy of SDC_TYPE. If not found, returns SDC_TYPE of kind
+ 'SDC_NULL' */
+SDC_TYPE SDC_HashTable_get_value_by_key(SDC_HashTable *ht, const char *key) {
   unsigned long idx = _SDC_fnv_hash(key, ht->buckets_len);
-  _SDC_BucketNode *current;
-  {
-    if (ht->buckets[idx].n == NULL)
-      return NULL;
-    current = ht->buckets[idx].n;
-    while (current != NULL) {
-      if (strcmp(current->key, key) == 0)
-        return current->value;
-      current = current->next;
-    }
-    return NULL;
+  _SDC_BucketNode *current = ht->buckets[idx].n;
+
+  while (current != NULL) {
+    if (strcmp(current->key, key) == 0)
+      return current->value;
+
+    current = current->next;
   }
+
+  return (SDC_TYPE){.kind = SDC_NULL};
 }
 
-/* returns 1 on failure */
-int SDC_HashTable_remove(SDC_HashTable *ht, const char *key) {
+// Returns false on failure
+bool SDC_HashTable_remove(SDC_HashTable *ht, const char *key) {
   unsigned long idx = _SDC_fnv_hash(key, ht->buckets_len);
   _SDC_BucketNode *current, *prev;
   {
     if (ht->buckets[idx].n == NULL)
-      return 1;
+      return false;
 
     current = ht->buckets[idx].n;
     prev = NULL;
@@ -537,42 +651,139 @@ int SDC_HashTable_remove(SDC_HashTable *ht, const char *key) {
         } else {
           prev->next = current->next;
         }
-        free(current->value);
         free(current->key);
         free(current);
-        return 0;
+        return true;
       }
       prev = current;
       current = current->next;
     }
 
-    return 1;
+    return false;
   }
 }
 
-/* Modify/replace value by key */
-int SDC_HashTable_modify(SDC_HashTable *ht, const char *key,
-                         const void *new_value, size_t new_value_size) {
+// Modify/replace value by key, returns false on failure
+bool SDC_HashTable_modify(SDC_HashTable *ht, const char *key,
+                          const SDC_TYPE *new_value) {
   unsigned long idx = _SDC_fnv_hash(key, ht->buckets_len);
   _SDC_BucketNode *current = ht->buckets[idx].n;
 
   while (current != NULL) {
     if (strcmp(current->key, key) == 0) {
-      memcpy(current->value, new_value, new_value_size);
-      return 0;
+      SDC_TYPE replacement;
+      replacement.kind = new_value->kind;
+      if (new_value->kind == SDC_STR) {
+        replacement.value.str = SDC_str_dup(new_value->value.str);
+        if (replacement.value.str == NULL)
+          return false;
+      } else {
+        replacement.value = new_value->value;
+      }
+      if (current->value.kind == SDC_STR)
+        free(current->value.value.str);
+      current->value = replacement;
+
+      return true;
     }
     current = current->next;
   }
-
-  return 1;
+  return false;
 }
 
-#endif /* SDC_IMPLEMENTATION */
+typedef struct SDC_HashTable_KV {
+  char *key;
+  SDC_TYPE val;
+} SDC_HashTable_KV;
+
+#define _SDC_HashTable_max_entries 8096
+
+void SDC_HashTable_KV_array_free(SDC_HashTable_KV *array) {
+  size_t i;
+
+  if (array == NULL)
+    return;
+
+  for (i = 0; i < _SDC_HashTable_max_entries; i++) {
+    free(array[i].key);
+  }
+
+  free(array);
+}
+
+/*
+   If successful, returns a new allocated array SDC_HashTable_KV* and
+   frees the memory of the input HashTable. Returns NULL on
+   allocation failure. The returned array must be freed with
+   SDC_HashTable_KV_array_free(). Unused elements have key == NULL and val ==
+   NULL. Takes an 'out_len' which recieves the length of outputted array.
+   */
+SDC_HashTable_KV *SDC_HashTable_reduce_to_array(SDC_HashTable *ht,
+                                                size_t *out_len) {
+  size_t i;
+  size_t array_idx = 0;
+
+  if (!ht || !out_len)
+    return NULL;
+
+  SDC_HashTable_KV tmp[_SDC_HashTable_max_entries];
+
+  for (i = 0; i < ht->buckets_len; i++) {
+    _SDC_BucketNode *current = ht->buckets[i].n;
+
+    while (current != NULL) {
+      if (array_idx >= _SDC_HashTable_max_entries) {
+        return NULL;
+      }
+      if (current->value.kind != SDC_INT) {
+        return NULL;
+      }
+      tmp[array_idx].key = current->key;
+      tmp[array_idx].val = current->value;
+      array_idx++;
+      current = current->next;
+    }
+  }
+  *out_len = array_idx;
+
+  SDC_HashTable_KV *result;
+  result = calloc(array_idx + 1, sizeof(*result));
+  for (i = 0; i < array_idx; i++) {
+    result[i].key = SDC_str_dup(tmp[i].key);
+    result[i].val = tmp[i].val;
+  }
+
+  SDC_HashTable_free(ht);
+
+  return result;
+}
+
+#endif // SDC_IMPLEMENTATION
 
 /*
 
 -------------------------------------------------------------------------------
 Revision history:
+
+    2026-08-31  Refactoring & Strings
+    ----------
+                * C standard switch
+                    - Move from C89 to C99 to facilitate compound literals.
+                    - Re-style comments
+                * Strings
+                    - SDC_str_remove_special_characters()
+                    - SDC_str_upper()
+                    - SDC_str_lower()
+                    - SDC_str_split_by_delim()
+                * Hashtable
+                    - Move from void* memory model to unions
+                    - SDC_HashTable_reduce_to_array()
+                * Dyn arrays
+                    - Move from void* memory model to unions
+                * Rand
+                    - Change naming scheme
+                    - SDC_rand_shuffle()
+                    - SDC_rand()
 
     2026-08-30  IO, strings, rand and math
     ----------
@@ -618,6 +829,7 @@ https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
 https://www.geeksforgeeks.org/c/bitwise-operators-in-c-cpp/
 https://en.wikipedia.org/wiki/Xorshift#xoroshiro
 https://en.wikipedia.org/wiki/Feature_scaling
+https://www.cs.yale.edu/homes/aspnes/pinewiki/FrontPage.html
 
 -------------------------------------------------------------------------------
 License:

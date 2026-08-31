@@ -20,7 +20,7 @@
 
 ## Info
   
-A header-only C library with utilities frequently needed across my various C projects. Implemented in ANSI C (C89).
+A header-only C library with utilities frequently needed across my various C projects.
   
 ---
 <div id="install"></div>
