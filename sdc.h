@@ -17,6 +17,7 @@ See the end of this file for more information.
 #ifndef SDC_H_INCLUDE
 #define SDC_H_INCLUDE
 
+#include <assert.h>
 #include <ctype.h>
 #include <iso646.h>
 #include <limits.h>
@@ -816,6 +817,157 @@ SDC_KV *SDC_HashTable_reduce_to_array(SDC_HashTable *ht, size_t *out_len) {
   return result;
 }
 
+// ARENA ALLOCATOR  = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+
+_SDC_internal bool _SDC_Arena_is_power_of_two(uintptr_t x) {
+  return (x & (x - 1)) == 0;
+}
+
+_SDC_internal uintptr_t _SDC_Arena_align_forward(uintptr_t ptr, size_t align) {
+  uintptr_t p, a, modulo;
+
+  assert(_SDC_Arena_is_power_of_two(align));
+
+  p = ptr;
+  a = (uintptr_t)align;
+  // Same as (p % a) but faster as 'a' is a power of two
+  modulo = p & (a - 1);
+
+  if (modulo != 0) {
+    // If 'p' address is not aligned, push the address to the
+    // next value which is aligned
+    p += a - modulo;
+  }
+  return p;
+}
+
+#define _SDC_Arena_default_alignment (2 * sizeof(void *))
+
+/* Regarding SDC_Arena:
+ * The credit for all the arena code goes to Ginger Bill.
+ * The original source code was taken from:
+ * https://www.gingerbill.org/article/2019/02/08/memory-allocation-strategies-002/
+ *
+ * Here the example code for this Arena implementation taken from the blog post
+ * in the link above:
+ *
+ * ``` c
+ * int main(void) {
+ *
+ *     // if you want the heap
+ *     void *backing_buffer = malloc(256);
+ *     // if you want the stack
+ *     // unsigned char backing_buffer[256];
+ *     SDC_Arena a = {0};
+ *     SDC_Arena_init(&a, backing_buffer, 256);
+ *
+ *     for (int i = 0; i < 80; i++) {
+ *         int *x;
+ *         float *f;
+ *         char *str;
+ *
+ *         // Reset all arena offsets for each loop
+ *         SDC_Arena_free_all(&a);
+ *
+ *         x = (int *)SDC_Arena_alloc(&a, sizeof(int));
+ *         f = (float *)SDC_Arena_alloc(&a, sizeof(float));
+ *         str = SDC_Arena_alloc(&a, 8);
+ *
+ *         *x = 123;
+ *         *f = 987;
+ *         memmove(str, "Hellope", 7);
+ *
+ *         printf("%p: %d\n", (void *)x, *x);
+ *         printf("%p: %f\n", (void *)f, *f);
+ *         printf("%p: %s\n", str, str);
+ *
+ *         str = SDC_Arena_resize(&a, str, 10, 14);
+ *         memmove(str + 7, " world!", 7);
+ *         printf("%p: %s\n", str, str);
+ *     }
+ *
+ *     SDC_Arena_free_all(&a);
+ *
+ *     return 0;
+ * }
+ * ```
+ */
+typedef struct SDC_Arena SDC_Arena;
+struct SDC_Arena {
+  unsigned char *buf;
+  size_t buf_len;
+  size_t prev_offset;
+  size_t curr_offset;
+};
+
+void SDC_Arena_init(SDC_Arena *a, void *backing_buffer,
+                    size_t backing_buffer_length) {
+  a->buf = (unsigned char *)backing_buffer;
+  a->buf_len = backing_buffer_length;
+  a->curr_offset = 0;
+  a->prev_offset = 0;
+}
+
+_SDC_internal void *_SDC_Arena_alloc_align(SDC_Arena *a, size_t size,
+                                           size_t align) {
+  uintptr_t curr_ptr = (uintptr_t)a->buf + (uintptr_t)a->curr_offset;
+  uintptr_t offset = _SDC_Arena_align_forward(curr_ptr, align);
+  offset -= (uintptr_t)a->buf; // Change to relative offset
+
+  if (offset + size <= a->buf_len) {
+    void *ptr = &a->buf[offset];
+    a->prev_offset = offset;
+    a->curr_offset = offset + size;
+
+    memset(ptr, 0, size);
+    return ptr;
+  }
+  return NULL;
+}
+
+_SDC_internal void *SDC_Arena_alloc(SDC_Arena *a, size_t size) {
+  return _SDC_Arena_alloc_align(a, size, _SDC_Arena_default_alignment);
+}
+
+_SDC_internal void *_SDC_Arena_resize_align(SDC_Arena *a, void *old_memory,
+                                            size_t old_size, size_t new_size,
+                                            size_t align) {
+  unsigned char *old_mem = (unsigned char *)old_memory;
+
+  assert(_SDC_Arena_is_power_of_two(align));
+
+  if (old_mem == NULL || old_size == 0) {
+    return _SDC_Arena_alloc_align(a, new_size, align);
+  } else if (a->buf <= old_mem && old_mem < a->buf + a->buf_len) {
+    if (a->buf + a->prev_offset == old_mem) {
+      a->curr_offset = a->prev_offset + new_size;
+      if (new_size > old_size) {
+        memset(&a->buf[a->curr_offset], 0, new_size - old_size);
+      }
+      return old_memory;
+    } else {
+      void *new_memory = _SDC_Arena_alloc_align(a, new_size, align);
+      size_t copy_size = old_size < new_size ? old_size : new_size;
+      memmove(new_memory, old_memory, copy_size);
+      return new_memory;
+    }
+
+  } else {
+    return NULL;
+  }
+}
+
+void *SDC_Arena_resize(SDC_Arena *a, void *old_memory, size_t old_size,
+                       size_t new_size) {
+  return _SDC_Arena_resize_align(a, old_memory, old_size, new_size,
+                                 _SDC_Arena_default_alignment);
+}
+
+void SDC_Arena_free_all(SDC_Arena *a) {
+  a->curr_offset = 0;
+  a->prev_offset = 0;
+}
+
 #endif // SDC_IMPLEMENTATION
 
 /*
@@ -830,6 +982,9 @@ Revision history:
 
                 * Dyn arrays
                     - Sorting function SDC_da_qsort(SDC_da *da, int (*comp...
+
+                * Arena
+                    - Steal implementation from Ginger Bill
 
     2026-08-31  Refactoring & Strings
     ----------
@@ -888,6 +1043,8 @@ https://doc.rust-lang.org/std/collections/struct.HashMap.html
 https://www.masaischool.com/blog/understanding-hashmap-data-structure-with-examples/
 https://www.geeksforgeeks.org/dsa/singly-linked-list-tutorial/
 https://www.w3schools.com/dsa/dsa_algo_linkedlists_operations.php
+https://www.gingerbill.org/article/2019/02/08/memory-allocation-strategies-002/
+https://www.bytesbeneath.com/p/the-arena-custom-memory-allocators
 https://en.wikipedia.org/wiki/Non-cryptographic_hash_function
 https://stackoverflow.com/questions/15821123/removing-elements-from-an-array-in-c
 https://doc.rust-lang.org/std/vec/struct.Vec.html#method.remove
