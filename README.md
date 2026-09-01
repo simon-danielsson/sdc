@@ -60,6 +60,7 @@ No usage section written yet.
 - https://www.geeksforgeeks.org/c/bitwise-operators-in-c-cpp/
 - https://en.wikipedia.org/wiki/Xorshift#xoroshiro
 - https://en.wikipedia.org/wiki/Feature_scaling
+https://www.cs.yale.edu/homes/aspnes/pinewiki/FrontPage.html
 
     
 ---
