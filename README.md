@@ -40,9 +40,9 @@ Simply clone or copy-paste [sdc.h](./sdc.h) into your codebase and include it.
   
 ## Usage
    
-See the [EXAMPLES](./EXAMPLES.md) file for a few usage examples. But I would
-recommend that you first and foremost look through the source code on your own
-to get a feeling of what you can do with the library.
+See the [EXAMPLES](./EXAMPLES.md) file for a few usage examples - but I would
+recommend that you first and foremost look through and study the [source
+code](./sdc.h) on your own.
     
 ---
 <div id="references"></div>
