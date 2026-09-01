@@ -473,21 +473,21 @@ bool SDC_str_is_empty(const char *s) {
 /* Reads file into provided buffer; stack-allocated (max 2MB). Silently stops
   reading into buffer without throwing an error if stack-limit is reached.
   Returns 1 on failure. */
-int SDC_io_read_entire_file(char **buffer, const char *path) {
+bool SDC_io_read_entire_file(char *buffer, const char *path) {
   int c, len = 0;
   char tmp[_SDC_io_read_buffer_kb];
   FILE *f = fopen(path, "rb");
   if (!f)
-    return 1;
+    return false;
   while ((c = fgetc(f)) != EOF) {
     if (len >= _SDC_io_read_buffer_kb)
       break;
     tmp[len++] = c;
   }
   tmp[len] = '\0';
-  *buffer = tmp;
+  strncpy(buffer, tmp, len);
   fclose(f);
-  return 0;
+  return true;
 }
 
 /* Reads user input into buffer with a simple prompt, finish with newline.
@@ -736,15 +736,14 @@ bool SDC_HashTable_modify(SDC_HashTable *ht, const char *key,
   return false;
 }
 
-typedef struct SDC_HashTable_KV {
+typedef struct SDC_KV {
   char *key;
   SDC_TYPE val;
-} SDC_HashTable_KV;
+} SDC_KV;
 
 #define _SDC_HashTable_max_entries 10000
 
-void SDC_HashTable_KV_array_free(SDC_HashTable_KV *array,
-                                 const size_t array_len) {
+void SDC_KV_array_free(SDC_KV *array, const size_t array_len) {
 
   if (array == NULL)
     return;
@@ -757,16 +756,16 @@ void SDC_HashTable_KV_array_free(SDC_HashTable_KV *array,
 }
 
 /*
- * If successful, returns a new allocated array SDC_HashTable_KV* and
+ * If successful, returns a new allocated array SDC_KV* and
  * frees the memory of the input HashTable. Returns NULL on
  * allocation failure. The returned array must be freed with
- * SDC_HashTable_KV_array_free(). Unused elements have key == NULL and val ==
+ * SDC_KV_array_free(). Unused elements have key == NULL and val ==
  * NULL. Takes an 'out_len' which recieves the length of outputted array.
  *
  * Example:
  * ``` c
  * size_t array_len;
- * SDC_HashTable_KV *array = SDC_HashTable_reduce_to_array(&ht, &array_len);
+ * SDC_KV *array = SDC_HashTable_reduce_to_array(&ht, &array_len);
  *
  * if (array == NULL)
  *     err("Failed to reduce table");
@@ -775,18 +774,17 @@ void SDC_HashTable_KV_array_free(SDC_HashTable_KV *array,
  *     printf("%s: %d\n", array[i].key, array[i].val.as.i);
  *
  * SDC_HashTable_free(&ht);
- * SDC_HashTable_KV_array_free(array, array_len);
+ * SDC_KV_array_free(array, array_len);
  * ```
  */
-SDC_HashTable_KV *SDC_HashTable_reduce_to_array(SDC_HashTable *ht,
-                                                size_t *out_len) {
+SDC_KV *SDC_HashTable_reduce_to_array(SDC_HashTable *ht, size_t *out_len) {
   size_t i;
   size_t array_idx = 0;
 
   if (!ht || !out_len)
     return NULL;
 
-  SDC_HashTable_KV tmp[_SDC_HashTable_max_entries];
+  SDC_KV tmp[_SDC_HashTable_max_entries];
 
   for (i = 0; i < ht->buckets_len; i++) {
     _SDC_BucketNode *current = ht->buckets[i].n;
@@ -806,7 +804,7 @@ SDC_HashTable_KV *SDC_HashTable_reduce_to_array(SDC_HashTable *ht,
   }
   *out_len = array_idx;
 
-  SDC_HashTable_KV *result;
+  SDC_KV *result;
   result = calloc(array_idx + 1, sizeof(*result));
   for (i = 0; i < array_idx; i++) {
     result[i].key = SDC_str_dup(tmp[i].key);
