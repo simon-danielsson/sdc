@@ -81,9 +81,9 @@ int main(void) {
 - `SDC_TYPE SDC_HashTable_get_value_by_key(SDC_HashTable *ht, const char *key)`
 - `bool SDC_HashTable_modify(SDC_HashTable *ht, const char *key, const SDC_TYPE *new_value)`
 - `void SDC_da_free(SDC_da *da)`
-- `SDC_HashTable_KV *SDC_HashTable_reduce_to_array(SDC_HashTable *ht, size_t *out_len)`
+- `SDC_KV *SDC_HashTable_reduce_to_array(SDC_HashTable *ht, size_t *out_len)`
 - `void SDC_HashTable_free(SDC_HashTable *ht)`
-- `void SDC_HashTable_KV_array_free(SDC_HashTable_KV *array, const size_t array_len)`
+- `void SDC_KV_array_free(SDC_KV *array, const size_t array_len)`
 
 ### Code
 ``` c
@@ -96,8 +96,8 @@ void err(const char *msg) {
 }
 
 int words_sort(const void *a, const void *b) {
-    SDC_HashTable_KV arg1 = *(const SDC_HashTable_KV *)a;
-    SDC_HashTable_KV arg2 = *(const SDC_HashTable_KV *)b;
+    SDC_KV arg1 = *(const SDC_KV *)a;
+    SDC_KV arg2 = *(const SDC_KV *)b;
 
     if (arg1.val.as.i < arg2.val.as.i)
         return -1;
@@ -132,7 +132,7 @@ void count_occurences(const char *file_contents,
     SDC_da_free(&da);
 
     size_t array_len;
-    SDC_HashTable_KV *array = SDC_HashTable_reduce_to_array(&ht, &array_len);
+    SDC_KV *array = SDC_HashTable_reduce_to_array(&ht, &array_len);
 
     if (array == NULL)
         err("Failed to reduce table");
@@ -143,7 +143,7 @@ void count_occurences(const char *file_contents,
         printf("%s: %d\n", array[i].key, array[i].val.as.i);
 
     SDC_HashTable_free(&ht);
-    SDC_HashTable_KV_array_free(array, array_len);
+    SDC_KV_array_free(array, array_len);
 }
 
 int main(int argc, char *argv[]) {
@@ -160,3 +160,85 @@ int main(int argc, char *argv[]) {
 }
 ```
 
+## Configuration file parser
+
+### API
+- `int SDC_HashTable_init(SDC_HashTable *ht)`
+- `bool SDC_str_split_by_delim(SDC_da *da, const char *input, const size_t input_len, const char delim)`
+- `bool SDC_HashTable_insert(SDC_HashTable *ht, const char *key, SDC_TYPE *value)`
+- `SDC_TYPE SDC_HashTable_get_value_by_key(SDC_HashTable *ht, const char *key)`
+- `void SDC_da_free(SDC_da *da)`
+- `void SDC_HashTable_free(SDC_HashTable *ht)`
+- `bool SDC_io_read_entire_file(char *buffer, const char *path)`
+- `bool SDC_str_starts_with(const char *str, const char *starts_with)`
+- `bool SDC_str_is_empty(const char *s)`
+
+### Code
+
+``` c
+#define SDC_IMPLEMENTATION
+#include "../../sdc/sdc.h"
+#include <locale.h>
+
+bool parse_conf_file(SDC_HashTable *ht, char *conf_contents, const char *_,
+        const char *syntax_comm) {
+    if (!ht || !syntax_comm || !conf_contents)
+        return false;
+    SDC_da lines = {0};
+    SDC_str_split_by_delim(&lines, conf_contents, strlen(conf_contents), '\n');
+
+    setlocale(LC_ALL, "en_US.utf8");
+
+    for (size_t i = 0; i < SDC_da_len(&lines); i++) {
+        if (SDC_str_starts_with(lines.items[i].as.str, syntax_comm) ||
+                SDC_str_is_empty(lines.items[i].as.str)) {
+            continue;
+        }
+        char key[48], value[48], sep[4];
+        sscanf(lines.items[i].as.str, "%s%s%s", key, sep, value);
+        if (!SDC_HashTable_insert(ht, key,
+                    &(SDC_TYPE){.as.str = value, .kind = SDC_STR})) {
+            return false;
+        };
+    }
+
+    SDC_da_free(&lines);
+
+    return true;
+}
+
+int main(void) {
+    char conf_contents[_SDC_io_read_buffer_kb];
+    {
+        SDC_io_read_entire_file(conf_contents, "settings.conf");
+    }
+
+    SDC_HashTable conf = {0};
+    {
+        SDC_HashTable_init(&conf);
+        if (!parse_conf_file(&conf, conf_contents, "=", "#")) {
+            printf("Error: failed to parse config file\n");
+        }
+    }
+
+#define GET_VALUE(key)                                                         \
+    {                                                                            \
+        SDC_TYPE k = SDC_HashTable_get_value_by_key(&conf, (key));                 \
+        if (k.kind != SDC_STR)                                                     \
+        printf("Error: field '%s' either missing or malformed\n", (key));        \
+        else                                                                       \
+        printf("%-20s%-8s\n", (key), k.as.str);                                  \
+    }
+
+    GET_VALUE("host");
+    GET_VALUE("port");
+    GET_VALUE("debug");
+    GET_VALUE("log_level");
+    GET_VALUE("log_file");
+    GET_VALUE("max_log_size_mb");
+
+    SDC_HashTable_free(&conf);
+
+    return 0;
+}
+```
