@@ -10,3 +10,6 @@ CompileFlags:
     - -Wno-unused-variable
     - -Wno-unused-but-set-variable
     - -Wno-unused-function
+
+Documentation:
+  CommentFormat: Markdown
