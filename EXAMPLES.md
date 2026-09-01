@@ -29,7 +29,7 @@ int main(void) {
 }
 ```
 
-## Split a string by a delimiter
+## Split a string and sort its words alphabetically
 
 ### API
 - `bool SDC_str_split_by_delim(SDC_da *da, const char *input, const size_t input_len, const char delim)`
