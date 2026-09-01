@@ -2,21 +2,6 @@
 #define SDC_IMPLEMENTATION
 #include "../sdc.h"
 
-/*
-   To do:
-
-   - linked list single
-   - linked list double
-   - arena allocator
-
-   Done:
-
-   - dynamic array
-   - hashtable
-   - logging
-
-*/
-
 int main(void) {
 
     /*
@@ -49,9 +34,9 @@ int main(void) {
     }
 
     SDC_HashTable_insert(&ht, "car",
-            &(SDC_TYPE){.kind = SDC_STR, .value.str = "volvo"});
+            &(SDC_TYPE){.kind = SDC_STR, .as.str = "volvo"});
     SDC_HashTable_insert(&ht, "sports_car",
-            &(SDC_TYPE){.kind = SDC_STR, .value.str = "ferrari"});
+            &(SDC_TYPE){.kind = SDC_STR, .as.str = "ferrari"});
 
     SDC_HashTable_remove(&ht, "car");
 
@@ -65,27 +50,23 @@ int main(void) {
         printf("table contains key sports_car\n");
     }
 
-    SDC_HashTable_modify(
-            &ht, "sports_car",
-            &(SDC_TYPE){.kind = SDC_STR, .value.str = "cool bugatti"});
+    SDC_HashTable_modify(&ht, "sports_car",
+            &(SDC_TYPE){.kind = SDC_STR, .as.str = "cool bugatti"});
 
     SDC_TYPE car = SDC_HashTable_get_value_by_key(&ht, "sports_car");
 
     if (car.kind == SDC_NULL)
         printf("car was not found!\n");
     else
-        printf("car: %s\n", car.value.str);
+        printf("car: %s\n", car.as.str);
 
     car = SDC_HashTable_get_value_by_key(&ht, "car");
     if (car.kind == SDC_NULL)
         printf("car was not found!\n");
     else
-        printf("car: %s\n", car.value.str);
+        printf("car: %s\n", car.as.str);
 
-    if (SDC_HashTable_free(&ht) != 0) {
-        return 1;
-    }
-    return 0;
+    SDC_HashTable_free(&ht);
 
     return 0;
 }

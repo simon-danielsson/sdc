@@ -18,6 +18,7 @@ See the end of this file for more information.
 #define SDC_H_INCLUDE
 
 #include <ctype.h>
+#include <iso646.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -155,36 +156,213 @@ void SDC_rand_shuffle(void *array, const size_t n, const size_t size) {
   }
 }
 
-// STRINGS = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+// DYNAMIC ARRAY = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
-// Returns splits count on success, returns -1 on failure. (Note that this
-// function only should be used with small strings - i.e sub-2000 bytes)
-/* Example:
- *   char *s = "This is a nice string";
- *
- *   const size_t buf_size = 64;
- *   char *buf[buf_size];
- *   for (size_t i = 0; i < buf_size; i++)
- *       buf[i] = alloca(buf_size);
- *
- *   int word_count = SDC_str_split_by_delim(buf, buf_size, s, strlen(s), ' ');
- *   if (word_count != -1) {
- *       for (int i = 0; i < word_count; i++) {
- *           printf("%d: %s\n", i, buf[i]);
- *       }
- *   }
- */
-int SDC_str_split_by_delim(char *splits_buf[], size_t splits_buf_size,
-                           const char *input, const size_t input_len,
-                           const char delim) {
-  size_t buf_len = 0;
+typedef struct SDC_TYPE {
+  enum {
+    SDC_NULL,
+    SDC_INT,
+    SDC_STR,
+    SDC_LONG,
+    SDC_DOUBLE,
+    SDC_FLOAT,
+  } kind;
+  union {
+    int i;
+    char *str;
+    long l;
+    double d;
+    float f;
+  } as;
+} SDC_TYPE;
 
-  for (size_t i = 0; i < splits_buf_size && i < input_len; i++) {
-    if (splits_buf[i] == NULL)
-      return -1;
+typedef struct {
+  SDC_TYPE *items;
+  size_t count, capacity;
+} SDC_da;
+
+void SDC_da_init(SDC_da *da) {
+  da->capacity = 8;
+  da->count = 0;
+  da->items = malloc(sizeof(SDC_TYPE) * da->capacity);
+}
+
+/* Shortens the vector, keeping the first N items and removing the rest. Returns
+   1 if index out of bounds.*/
+int SDC_da_truncate(SDC_da *da, const size_t idx) {
+  if (idx > da->count || idx < 0 || da->count == 0)
+    return 1;
+  da->count = idx;
+  return 0;
+}
+
+void SDC_da_free(SDC_da *da) { free(da->items); }
+
+// Adds new item to the back, returns false if failure.
+bool SDC_da_push(SDC_da *da, const SDC_TYPE item) {
+  if (da->count == da->capacity) {
+    size_t new_capacity = da->capacity * 2;
+    void *new_items = realloc(da->items, new_capacity * sizeof(SDC_TYPE));
+    if (new_items == NULL)
+      return false;
+    da->items = new_items;
+    da->capacity = new_capacity;
+  }
+  da->items[da->count] = item;
+  da->count++;
+  return true;
+}
+
+/* Pops last item from array and returns its value in 'out' (if you don't need
+   the popped item, provide NULL), returns false if failure. */
+bool SDC_da_pop(SDC_da *da, SDC_TYPE *out) {
+  if (da->count == 0)
+    return false;
+  da->count--;
+  if (out != NULL)
+    *out = da->items[da->count];
+  return true;
+}
+
+/* Takes a stack static array and fills it with a copy of the dynamic array.
+ * Returns false on failure.
+ *
+ * Example:
+ * ``` c
+ * SDC_TYPE static_arr[SDC_da_len(&da)];
+ * size_t static_arr_len = SDC_da_len(&da);
+ * SDC_da_copy_to_stack(&da, static_arr, static_arr_len);
+ * // The dynamic array can be freed safely past this point if you want to
+ * SDC_da_free(&da);
+ *
+ * for (size_t i = 0; i < static_arr_len; i++) {
+ *     printf("%s\n", static_arr[i].as.str);
+ * }
+ * ``` */
+bool SDC_da_copy_to_stack(SDC_da *da, SDC_TYPE new_array[],
+                          const size_t new_array_len) {
+  size_t i;
+  if (da->count == 0 || da->count != new_array_len)
+    return false;
+  for (i = 0; i < da->count; i++)
+    new_array[i] = da->items[i];
+  return true;
+}
+
+/* Sort dynamic array using stdlib qsort with provided comparison function.
+ * Returns false if failure.
+ *
+ * Example comparison function:
+ * ``` c
+ * int da_sort_int(const void *a, const void *b) {
+ *   SDC_TYPE arg1 = *(const SDC_TYPE *)a;
+ *   SDC_TYPE arg2 = *(const SDC_TYPE *)b;
+ *
+ *   if (arg1.as.i < arg2.as.i)
+ *       return -1;
+ *   if (arg1.as.i > arg2.as.i)
+ *       return 1;
+ *   return 0;
+ * }
+ * ```  */
+bool SDC_da_qsort(SDC_da *da, int (*comp)(const void *, const void *)) {
+  if (!da || !da->items || da->count == 0)
+    return false;
+  qsort(da->items, da->count, sizeof(SDC_TYPE), comp);
+  return true;
+}
+
+/* Removes item at idx, shifting all items after it to the left. Returns false
+ if failure. */
+bool SDC_da_remove(SDC_da *da, const size_t idx) {
+  size_t i;
+  SDC_TYPE next;
+  if (idx > da->count || idx < 0 || da->count == 0)
+    return false;
+  for (i = idx - 1; i < da->count; i++) {
+    if (i + 1 < da->count) {
+      next = da->items[i + 1];
+      da->items[i] = next;
+    }
+  }
+  da->count--;
+  return true;
+}
+
+// Sugar function for retrieving current length of array.
+size_t SDC_da_len(SDC_da *da) { return da->count; }
+
+/* Inserts new item at idx, shifting all items after it to the right. Returns
+ false if failure. */
+int SDC_da_insert(SDC_da *da, const SDC_TYPE item, const size_t idx) {
+  size_t i;
+  SDC_TYPE prev;
+  if (idx > da->count || idx < 0 || da->count == 0)
+    return false;
+  if (da->count == da->capacity) {
+    size_t new_capacity = da->capacity * 2;
+    void *new_items = realloc(da->items, new_capacity * sizeof(SDC_TYPE));
+    if (new_items == NULL)
+      return false;
+    da->items = new_items;
+    da->capacity = new_capacity;
   }
 
-  for (size_t pos = 0; pos < input_len && buf_len < splits_buf_size;) {
+  for (i = da->count; i >= idx; i--) {
+    if (i >= idx) {
+      prev = da->items[i - 1];
+      da->items[i] = prev;
+    }
+  }
+  da->items[idx - 1] = item;
+
+  da->count++;
+
+  return true;
+}
+
+// STRINGS = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+
+// Returns NULL if failure
+char *SDC_str_dup(const char *s) {
+  char *out;
+  if (!s)
+    return NULL;
+  out = malloc(strlen(s) + 1);
+  if (!out) {
+    return NULL;
+  }
+  strcpy(out, s);
+  return out;
+}
+
+/*
+ * Takes an `SDC_da` and fills it with the splits of an input string. (Note that
+ * `SDC_da_init()` is called inside this function and should not be executed
+ * by its caller).
+ *
+ * Example:
+ * ``` c
+ * char *s = "This is a string that I want to split by whitespace.";
+ * SDC_da da = {0};
+ * SDC_str_split_by_delim(&da, s, strlen(s), ' ');
+ *
+ * for (size_t i = 0; i < SDC_da_len(&da); i++) {
+ *     SDC_str_remove_special_chars(da.items[i].as.str);
+ *     printf("%s\n", da.items[i].as.str);
+ * }
+ * SDC_da_free(&da);
+ * ```
+ */
+bool SDC_str_split_by_delim(SDC_da *da, const char *input,
+                            const size_t input_len, const char delim) {
+
+  if (!da)
+    return false;
+
+  SDC_da_init(da);
+
+  for (size_t pos = 0; pos < input_len;) {
     size_t start = pos;
 
     if (input[pos] == delim) {
@@ -196,13 +374,18 @@ int SDC_str_split_by_delim(char *splits_buf[], size_t splits_buf_size,
       pos++;
 
     size_t segm_len = pos - start;
-    if (segm_len > 0 && buf_len < splits_buf_size) {
-      memcpy(splits_buf[buf_len], input + start, segm_len);
-      splits_buf[buf_len][segm_len] = '\0';
-      buf_len++;
+    if (segm_len > 0) {
+      char s[segm_len + 1];
+      memcpy(s, input + start, segm_len);
+      s[segm_len] = '\0';
+      if (!SDC_da_push(da,
+                       (SDC_TYPE){.as.str = SDC_str_dup(s), .kind = SDC_STR})) {
+        SDC_da_free(da);
+        return false;
+      };
     }
   }
-  return buf_len;
+  return true;
 }
 
 // Un-capitalize entire string
@@ -219,7 +402,7 @@ void SDC_str_upper(char *s) {
     s[i] = toupper(s[i]);
 }
 
-void SDC_str_remove_special_characters(char *str) {
+void SDC_str_remove_special_chars(char *str) {
   char *dst = str;
   while (*str) {
     if (isalnum((unsigned char)*str) || *str == '_')
@@ -227,19 +410,6 @@ void SDC_str_remove_special_characters(char *str) {
     str++;
   }
   *dst = '\0';
-}
-
-// Returns NULL if failure
-char *SDC_str_dup(const char *s) {
-  char *out;
-  if (!s)
-    return NULL;
-  out = malloc(strlen(s) + 1);
-  if (!out) {
-    return NULL;
-  }
-  strcpy(out, s);
-  return out;
 }
 
 // Append a single char to a string in-place.
@@ -340,129 +510,6 @@ void SDC_io_prompt(char **buffer, const char *prompt_header) {
   *buffer = tmp;
 }
 
-// DYNAMIC ARRAY = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-
-typedef struct {
-  enum { SDC_NULL, SDC_INT, SDC_STR, SDC_LONG, SDC_DOUBLE, SDC_FLOAT } kind;
-  union {
-    int i;
-    char *str;
-    long l;
-    double d;
-    float f;
-  } value;
-} SDC_TYPE;
-
-typedef struct {
-  SDC_TYPE *items;
-  size_t count, capacity;
-} SDC_da;
-
-#define _SDC_DA_INIT_CAP 8
-
-void SDC_da_init(SDC_da *da) {
-  da->capacity = _SDC_DA_INIT_CAP;
-  da->count = 0;
-  da->items = malloc(sizeof(SDC_TYPE) * da->capacity);
-}
-
-/* Shortens the vector, keeping the first N items and removing the rest. Returns
-   1 if index out of bounds.*/
-int SDC_da_truncate(SDC_da *da, const size_t idx) {
-  if (idx > da->count || idx < 0 || da->count == 0)
-    return 1;
-  da->count = idx;
-  return 0;
-}
-
-void SDC_da_free(SDC_da *da) { free(da->items); }
-
-// Adds new item to the back, returns 1 if failure.
-int SDC_da_push(SDC_da *da, const SDC_TYPE item) {
-  if (da->count == da->capacity) {
-    size_t new_capacity = da->capacity * 2;
-    void *new_items = realloc(da->items, new_capacity * sizeof(SDC_TYPE));
-    if (new_items == NULL)
-      return 1;
-    da->items = new_items;
-    da->capacity = new_capacity;
-  }
-  da->items[da->count] = item;
-  da->count++;
-  return 0;
-}
-
-/* Pops last item from array and returns its value in 'out' (if you don't need
-   the popped item, provide NULL), returns 1 if failure. */
-int SDC_da_pop(SDC_da *da, SDC_TYPE *out) {
-  if (da->count == 0)
-    return 1;
-  da->count--;
-  if (out != NULL)
-    *out = da->items[da->count];
-  return 0;
-}
-
-/* Returns a copy of the dynamic array as a static stack-allocated C array,
-   i.e 'SDC_TYPE array[len]'. Returns 1 on failure. */
-int SDC_da_copy_to_stack(SDC_da *da, SDC_TYPE new_array[],
-                         size_t new_array_len) {
-  size_t i;
-  if (da->count == 0 || da->count != new_array_len)
-    return 1;
-  for (i = 0; i < da->count; i++)
-    new_array[i] = da->items[i];
-  return 0;
-}
-
-/* Removes item at idx, shifting all items after it to the left. Returns 1 at
-   failure. */
-int SDC_da_remove(SDC_da *da, const size_t idx) {
-  size_t i;
-  SDC_TYPE next;
-  if (idx > da->count || idx < 0 || da->count == 0)
-    return 1;
-  for (i = idx - 1; i < da->count; i++) {
-    if (i + 1 < da->count) {
-      next = da->items[i + 1];
-      da->items[i] = next;
-    }
-  }
-  da->count--;
-  return 0;
-}
-
-// Sugar function for retrieving current length of array.
-size_t SDC_da_len(SDC_da *da) { return da->count; }
-
-// Inserts new item at idx, shifting all items after it to the right.
-int SDC_da_insert(SDC_da *da, const SDC_TYPE item, const size_t idx) {
-  size_t i;
-  SDC_TYPE prev;
-  if (idx > da->count || idx < 0 || da->count == 0)
-    return 1;
-  if (da->count == da->capacity) {
-    size_t new_capacity = da->capacity * 2;
-    void *new_items = realloc(da->items, new_capacity * sizeof(SDC_TYPE));
-    if (new_items == NULL)
-      return 1;
-    da->items = new_items;
-    da->capacity = new_capacity;
-  }
-
-  for (i = da->count; i >= idx; i--) {
-    if (i >= idx) {
-      prev = da->items[i - 1];
-      da->items[i] = prev;
-    }
-  }
-  da->items[idx - 1] = item;
-
-  da->count++;
-
-  return 0;
-}
-
 // HASH TABLE = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
 typedef struct _SDC_BucketNode _SDC_BucketNode;
@@ -487,14 +534,14 @@ _SDC_internal _SDC_BucketNode *_SDC_BucketNode_new(const char *key,
   n->value.kind = value->kind;
 
   if (value->kind == SDC_STR) {
-    n->value.value.str = SDC_str_dup(value->value.str);
-    if (n->value.value.str == NULL) {
+    n->value.as.str = SDC_str_dup(value->as.str);
+    if (n->value.as.str == NULL) {
       free(n->key);
       free(n);
       return NULL;
     }
   } else {
-    n->value.value = value->value;
+    n->value.as = value->as;
   }
 
   n->next = NULL;
@@ -538,14 +585,14 @@ _SDC_internal void _SDC_Bucket_insert(_SDC_Bucket *b, const char *key,
   last->next = bn;
 }
 
-_SDC_internal int _SDC_Bucket_free(_SDC_Bucket *b) {
+_SDC_internal void _SDC_Bucket_free(_SDC_Bucket *b) {
   _SDC_BucketNode *current = b->n;
 
   while (current != NULL) {
     _SDC_BucketNode *next = current->next;
 
     if (current->value.kind == SDC_STR)
-      free(current->value.value.str);
+      free(current->value.as.str);
 
     free(current->key);
     free(current);
@@ -553,15 +600,13 @@ _SDC_internal int _SDC_Bucket_free(_SDC_Bucket *b) {
   }
 
   b->n = NULL;
-  return 0;
 }
 
-int SDC_HashTable_free(SDC_HashTable *ht) {
+void SDC_HashTable_free(SDC_HashTable *ht) {
   size_t i;
   for (i = 0; i < ht->buckets_len; i++) {
     _SDC_Bucket_free(&ht->buckets[i]);
   }
-  return 0;
 }
 
 #define _SDC_FNV_offset_basis 0xcbf29ce484222325
@@ -596,7 +641,7 @@ bool SDC_HashTable_contains_key(SDC_HashTable *ht, const char *key) {
   }
 }
 
-// Returns false on failure */
+// Returns false on failure
 bool SDC_HashTable_insert(SDC_HashTable *ht, const char *key, SDC_TYPE *value) {
   unsigned long idx = _SDC_fnv_hash(key, ht->buckets_len);
   _SDC_BucketNode *bn, *last;
@@ -674,14 +719,14 @@ bool SDC_HashTable_modify(SDC_HashTable *ht, const char *key,
       SDC_TYPE replacement;
       replacement.kind = new_value->kind;
       if (new_value->kind == SDC_STR) {
-        replacement.value.str = SDC_str_dup(new_value->value.str);
-        if (replacement.value.str == NULL)
+        replacement.as.str = SDC_str_dup(new_value->as.str);
+        if (replacement.as.str == NULL)
           return false;
       } else {
-        replacement.value = new_value->value;
+        replacement.as = new_value->as;
       }
       if (current->value.kind == SDC_STR)
-        free(current->value.value.str);
+        free(current->value.as.str);
       current->value = replacement;
 
       return true;
@@ -696,15 +741,15 @@ typedef struct SDC_HashTable_KV {
   SDC_TYPE val;
 } SDC_HashTable_KV;
 
-#define _SDC_HashTable_max_entries 8096
+#define _SDC_HashTable_max_entries 10000
 
-void SDC_HashTable_KV_array_free(SDC_HashTable_KV *array) {
-  size_t i;
+void SDC_HashTable_KV_array_free(SDC_HashTable_KV *array,
+                                 const size_t array_len) {
 
   if (array == NULL)
     return;
 
-  for (i = 0; i < _SDC_HashTable_max_entries; i++) {
+  for (size_t i = 0; i < array_len; i++) {
     free(array[i].key);
   }
 
@@ -712,12 +757,27 @@ void SDC_HashTable_KV_array_free(SDC_HashTable_KV *array) {
 }
 
 /*
-   If successful, returns a new allocated array SDC_HashTable_KV* and
-   frees the memory of the input HashTable. Returns NULL on
-   allocation failure. The returned array must be freed with
-   SDC_HashTable_KV_array_free(). Unused elements have key == NULL and val ==
-   NULL. Takes an 'out_len' which recieves the length of outputted array.
-   */
+ * If successful, returns a new allocated array SDC_HashTable_KV* and
+ * frees the memory of the input HashTable. Returns NULL on
+ * allocation failure. The returned array must be freed with
+ * SDC_HashTable_KV_array_free(). Unused elements have key == NULL and val ==
+ * NULL. Takes an 'out_len' which recieves the length of outputted array.
+ *
+ * Example:
+ * ``` c
+ * size_t array_len;
+ * SDC_HashTable_KV *array = SDC_HashTable_reduce_to_array(&ht, &array_len);
+ *
+ * if (array == NULL)
+ *     err("Failed to reduce table");
+ *
+ * for (size_t i = 0; i < array_len; i++)
+ *     printf("%s: %d\n", array[i].key, array[i].val.as.i);
+ *
+ * SDC_HashTable_free(&ht);
+ * SDC_HashTable_KV_array_free(array, array_len);
+ * ```
+ */
 SDC_HashTable_KV *SDC_HashTable_reduce_to_array(SDC_HashTable *ht,
                                                 size_t *out_len) {
   size_t i;
@@ -764,6 +824,14 @@ SDC_HashTable_KV *SDC_HashTable_reduce_to_array(SDC_HashTable *ht,
 
 -------------------------------------------------------------------------------
 Revision history:
+
+    2026-09-01  Dynamic Array related things
+    ----------
+                * Strings
+                    - SDC_str_split_by_delim() modified to use SDC_da
+
+                * Dyn arrays
+                    - Sorting function SDC_da_qsort(SDC_da *da, int (*comp...
 
     2026-08-31  Refactoring & Strings
     ----------
