@@ -19,15 +19,10 @@ See the end of this file for more information.
 
 #include <assert.h>
 #include <ctype.h>
-#include <iso646.h>
-#include <limits.h>
-#include <stdarg.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 #endif // SDC_H_INCLUDE
 
@@ -61,7 +56,7 @@ double SDC_math_min_max_rescale_value_f(const double old_value,
 double SDC_math_floor(double num) {
   long n;
   double d;
-  if (num >= (double)LONG_MAX || num <= (double)LONG_MIN || num != num) {
+  if (num >= (double)INT64_MIN || num <= (double)INT64_MIN || num != num) {
     return num;
   }
   n = (long)num;
@@ -82,7 +77,7 @@ double SDC_math_clamp(double d, double min, double max) {
 // Useful when working with CLI/TUI applications.
 size_t SDC_math_char_width_of_int(int i) {
   size_t len;
-  if (i == INT_MIN)
+  if (i == INT32_MIN)
     return 11;
   if (i < 0)
     i = -i;
@@ -99,7 +94,7 @@ _SDC_internal uint32_t _SDC_rand_state;
 _SDC_internal bool _SDC_rand_state_initialized = false;
 #define _SDC_rand_seed                                                         \
   if (!_SDC_rand_state_initialized) {                                          \
-    _SDC_rand_state = time(NULL);                                              \
+    _SDC_rand_state = (unsigned long)&_SDC_rand_state_initialized;             \
     _SDC_rand_state_initialized = true;                                        \
   }
 
