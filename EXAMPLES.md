@@ -29,6 +29,29 @@ int main(void) {
 }
 ```
 
+## Check if string ends with suffix
+
+### API
+- `int SDC_str_ends_with(const char *s, const char *suffix)`
+- `void SDC_str_remove_first_n(char *s, int n)`
+
+### Code
+``` c
+int main(void) {
+    char s[] = "usr/bin/ls";
+    char *find = "ls";
+
+    int idx = SDC_str_ends_with(s, find);
+    if (idx != -1) {
+        SDC_str_remove_first_n(s, idx);
+        printf("found %s at index %d!\n", s, idx);
+    } else {
+        printf("did not find %s!\n", find);
+    }
+    return 0;
+}
+```
+
 ## Replace substrings of a string
 
 ### API
