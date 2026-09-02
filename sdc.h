@@ -197,7 +197,21 @@ int SDC_da_truncate(SDC_da *da, const size_t idx) {
   return 0;
 }
 
-void SDC_da_free(SDC_da *da) { free(da->items); }
+void SDC_da_free(SDC_da *da) {
+  if (!da)
+    return;
+
+  for (size_t i = 0; i < da->count; i++) {
+    if (da->items[i].kind == SDC_STR)
+      free(da->items[i].as.str);
+  }
+
+  free(da->items);
+
+  da->items = NULL;
+  da->count = 0;
+  da->capacity = 0;
+}
 
 // Adds new item to the back, returns false if failure.
 bool SDC_da_push(SDC_da *da, const SDC_TYPE item) {
@@ -675,7 +689,7 @@ _SDC_internal unsigned long _SDC_fnv_hash(const char *ip,
                                           const size_t array_len) {
   size_t i, ip_len = strlen(ip);
   unsigned char byte_of_data;
-  unsigned long hash = _SDC_FNV_offset_basis;
+  unsigned long hash = (unsigned long)_SDC_FNV_offset_basis;
   for (i = 0; i < ip_len; i++) {
     byte_of_data = (unsigned)ip[i];
     hash *= _SDC_FNV_prime;
@@ -1039,6 +1053,9 @@ Revision history:
                     - SDC_str_replace_substr(const char *s, const char *s...
                     - SDC_str_ends_with(const char *s, const char *suffix)
                     - Better naming scheme for starts-with/ends-with functions
+
+                * Dyn arrays
+                    - Fix memory leak occuring in void SDC_da_free(SDC_da *da)
 
     2026-09-01  Dynamic Array, Arena
     ----------
