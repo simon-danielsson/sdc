@@ -1099,6 +1099,7 @@ https://www.bytesbeneath.com/p/the-arena-custom-memory-allocators
 https://en.wikipedia.org/wiki/Non-cryptographic_hash_function
 https://stackoverflow.com/questions/15821123/removing-elements-from-an-array-in-c
 https://doc.rust-lang.org/std/vec/struct.Vec.html#method.remove
+https://stackoverflow.com/questions/779875/what-function-is-to-replace-a-substring-from-a-string-in-c
 https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
 https://www.geeksforgeeks.org/c/bitwise-operators-in-c-cpp/
 https://en.wikipedia.org/wiki/Xorshift#xoroshiro

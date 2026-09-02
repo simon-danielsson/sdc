@@ -57,6 +57,7 @@ code](./sdc.h) on your own.
 - https://www.w3schools.com/dsa/dsa_algo_linkedlists_operations.php
 - https://www.gingerbill.org/article/2019/02/08/memory-allocation-strategies-002/
 - https://www.bytesbeneath.com/p/the-arena-custom-memory-allocators
+- https://stackoverflow.com/questions/779875/what-function-is-to-replace-a-substring-from-a-string-in-c
 - https://en.wikipedia.org/wiki/Non-cryptographic_hash_function
 - https://stackoverflow.com/questions/15821123/removing-elements-from-an-array-in-c
 - https://doc.rust-lang.org/std/vec/struct.Vec.html#method.remove
