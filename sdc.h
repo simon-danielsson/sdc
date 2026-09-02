@@ -484,21 +484,33 @@ void SDC_str_trim(char *s) {
   s[len] = '\0';
 }
 
-bool SDC_str_starts_with(const char *str, const char *starts_with) {
-  size_t len_str = strlen(str), len_word = strlen(starts_with);
-  if (len_word > len_str)
+// Returns true if `s` starts with `prefix`.
+bool SDC_str_starts_with(const char *s, const char *prefix) {
+  size_t len_s = strlen(s), len_prefix = strlen(prefix);
+  if (len_prefix > len_s)
     return false;
-  return strncmp(str, starts_with, len_word) == 0;
+  return strncmp(s, prefix, len_prefix) == 0;
+}
+
+// If `s` ends with `suffix`: returns index starting pos of `suffix` in `s`.
+// Else: returns -1.
+int SDC_str_ends_with(const char *s, const char *suffix) {
+  size_t len_s = strlen(s), len_suffix = strlen(suffix);
+  if (len_suffix > len_s)
+    return -1;
+  if (strncmp(s + (len_s - len_suffix), suffix, len_suffix) == 0)
+    return len_s - len_suffix;
+  return -1;
 }
 
 // Remove first N chars from string.
-void SDC_str_remove_first_n(char *c, int n) {
-  int len = strlen(c);
+void SDC_str_remove_first_n(char *s, int n) {
+  int len = strlen(s);
   if (n >= len) {
-    c[0] = '\0';
+    s[0] = '\0';
     return;
   }
-  memmove(c, c + n, len - n + 1);
+  memmove(s, s + n, len - n + 1);
 }
 
 // Returns true if string is effectively empty.
@@ -1021,12 +1033,14 @@ void SDC_Arena_free_all(SDC_Arena *a) {
 -------------------------------------------------------------------------------
 Revision history:
 
-    2026-09-02  Strings and such
+    2026-09-02  Strings
     ----------
                 * Strings
                     - SDC_str_replace_substr(const char *s, const char *s...
+                    - SDC_str_ends_with(const char *s, const char *suffix)
+                    - Better naming scheme for starts-with/ends-with functions
 
-    2026-09-01  Dynamic Array related things, Arena
+    2026-09-01  Dynamic Array, Arena
     ----------
                 * Strings
                     - SDC_str_split_by_delim() modified to use SDC_da
@@ -1037,7 +1051,7 @@ Revision history:
                 * Arena
                     - Steal implementation from Ginger Bill
 
-    2026-08-31  Refactoring & Strings
+    2026-08-31  Refactor, Strings
     ----------
                 * C standard switch
                     - Move from C89 to C99 to facilitate compound literals.
@@ -1057,7 +1071,7 @@ Revision history:
                     - SDC_rand_shuffle()
                     - SDC_rand()
 
-    2026-08-30  IO, strings, rand and math
+    2026-08-30  IO, strings, rand, math
     ----------
                 * Math
                     - New function for min-max range scaling.
