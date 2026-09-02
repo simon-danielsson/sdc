@@ -337,6 +337,52 @@ char *SDC_str_dup(const char *s) {
   return out;
 }
 
+/* Replaces all occurences of a substring in a string with a new one. Returns
+   an allocated string. Returns NULL on failure. */
+char *SDC_str_replace_substr(const char *s, const char *sub,
+                             const char *new_sub) {
+  if (!s || !sub || !new_sub)
+    return NULL;
+#define _SDC_str_replace_substr_tmp_cap 2048
+
+#define _SDC_str_replace_substr_append_to_tmp(s)                               \
+  if (tmp_len + 1 != _SDC_str_replace_substr_tmp_cap) {                        \
+    tmp[tmp_len++] = (s);                                                      \
+  } else {                                                                     \
+    return NULL;                                                               \
+  }
+
+  size_t sub_len = strlen(sub), i, tmp_len = 0;
+  char tmp[_SDC_str_replace_substr_tmp_cap] = {0}, *pos = strstr(s, sub),
+       *last_pos;
+
+  for (i = 0; i < (size_t)(pos - s); i++)
+    _SDC_str_replace_substr_append_to_tmp(s[i]);
+  for (i = 0; new_sub[i] != '\0'; i++)
+    _SDC_str_replace_substr_append_to_tmp(new_sub[i]);
+
+  for (;;) {
+    last_pos = pos;
+    pos = strstr(s + ((size_t)(last_pos - s) + sub_len), sub);
+
+    if (pos) {
+      for (i = (size_t)(last_pos - s) + sub_len; i < (size_t)(pos - s); i++)
+        _SDC_str_replace_substr_append_to_tmp(s[i]);
+      for (i = 0; new_sub[i] != '\0'; i++)
+        _SDC_str_replace_substr_append_to_tmp(new_sub[i]);
+      continue;
+    } else {
+      for (i = (size_t)last_pos - (size_t)s + sub_len; s[i] != '\0'; i++)
+        _SDC_str_replace_substr_append_to_tmp(s[i]);
+    }
+    break;
+  }
+  if (tmp_len == 0)
+    return NULL;
+  tmp[tmp_len] = '\0';
+  return SDC_str_dup(tmp);
+}
+
 /*
  * Takes an `SDC_da` and fills it with the splits of an input string. (Note that
  * `SDC_da_init()` is called inside this function and should not be executed
@@ -975,7 +1021,12 @@ void SDC_Arena_free_all(SDC_Arena *a) {
 -------------------------------------------------------------------------------
 Revision history:
 
-    2026-09-01  Dynamic Array related things
+    2026-09-02  Strings and such
+    ----------
+                * Strings
+                    - SDC_str_replace_substr(const char *s, const char *s...
+
+    2026-09-01  Dynamic Array related things, Arena
     ----------
                 * Strings
                     - SDC_str_split_by_delim() modified to use SDC_da
