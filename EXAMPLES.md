@@ -29,6 +29,29 @@ int main(void) {
 }
 ```
 
+## Replace substrings of a string
+
+### API
+- `char *SDC_str_replace_substr(const char *s, const char *sub, const char *new_sub)`
+
+### Code
+``` c
+#define SDC_IMPLEMENTATION
+#include "../../sdc/sdc.h"
+
+int main(void) {
+    char *s = "This is a hello, and a goodbye. Another hello, or goodbye and "
+        "hello at last.\n";
+    printf("raw string: %s", s);
+
+    char *new_s = SDC_str_replace_substr(s, "hello", "goodbye");
+    printf("new string: %s", new_s);
+    free(new_s);
+
+    return 0;
+}
+```
+
 ## Split a string and sort its words alphabetically
 
 ### API
