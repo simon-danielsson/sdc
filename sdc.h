@@ -553,7 +553,7 @@ bool SDC_io_read_entire_file(char *buffer, const char *path) {
     tmp[len++] = c;
   }
   tmp[len] = '\0';
-  strncpy(buffer, tmp, len);
+  strncpy(buffer, tmp, len + 1);
   fclose(f);
   return true;
 }
