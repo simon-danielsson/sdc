@@ -339,11 +339,19 @@ char *SDC_str_dup(const char *s) {
   if (!s)
     return NULL;
   out = malloc(strlen(s) + 1);
-  if (!out) {
+  if (!out)
     return NULL;
-  }
   strcpy(out, s);
   return out;
+}
+
+/* XOR String obfuscation (self-reversible). Note that this doesn't offer
+ * any proper security - it's only good for obfuscating text for human eyes. */
+void SDC_str_obf(char *out, const char *in) {
+  const char key[3] = {'S', 'D', 'C'};
+  for (size_t i = 0; i < strlen(in); i++) {
+    out[i] = in[i] ^ key[i % (3 / sizeof(char))];
+  }
 }
 
 /* Replaces all occurences of a substring in a string with a new one. Returns
@@ -536,7 +544,7 @@ bool SDC_str_is_empty(const char *s) {
 
 // IO = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
-#define _SDC_io_read_buffer_kb 2048 * 1000
+#define _SDC_io_read_buffer_kb 2048 * 100
 
 /* Reads file into provided buffer; stack-allocated (max 2MB). Silently stops
   reading into buffer without throwing an error if stack-limit is reached.
@@ -1041,6 +1049,11 @@ void SDC_Arena_free_all(SDC_Arena *a) {
 
 -------------------------------------------------------------------------------
 Revision history:
+
+    2026-09-05  String
+    ----------
+                * Strings
+                    - SDC_str_obf(char *out, const char *in)
 
     2026-09-02  Strings
     ----------
